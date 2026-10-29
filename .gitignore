@@ -1,0 +1,42 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Runtime data
+data/
+artifacts/
+*.log
+
+# Benchmark raw output is committed deliberately only under benchmarks/results/<run-id>/
+benchmarks/results/tmp/
+
+# Editors / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

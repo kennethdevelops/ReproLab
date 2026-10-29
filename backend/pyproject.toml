@@ -1,0 +1,76 @@
+[project]
+name = "reprolab"
+version = "0.1.0"
+description = "AI-powered bug investigation and reproduction: API, workers, agent and retrieval."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "sqlalchemy>=2.0.36",
+  "alembic>=1.14",
+  "psycopg[binary]>=3.2",
+  "pgvector>=0.3.6",
+  "celery[redis]>=5.4",
+  "redis>=5.2",
+  "httpx>=0.28",
+  "playwright==1.64.1",
+  "anthropic>=2.3.0",
+  "langgraph>=1.2.18",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.8",
+  "mypy>=1.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reprolab"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "SIM"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+"alembic/**" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+packages = ["reprolab"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "pgvector.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["reprolab.workers.*"]
+disallow_untyped_decorators = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "integration: needs PostgreSQL/Redis (DATABASE_URL must point at a test DB)",
+  "browser: needs Playwright Chromium and the demo target",
+  "live: calls a real billed model provider; opt-in only",
+]
+addopts = "-m 'not integration and not browser and not live'"

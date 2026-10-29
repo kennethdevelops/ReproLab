@@ -1,0 +1,43 @@
+{
+  "suite_version": "1",
+  "fixtures": [
+    {
+      "case_id": "D01",
+      "defect_files": ["demo-target/src/checkout/useCoupon.ts"],
+      "relevant_files": [
+        "demo-target/src/checkout/useCoupon.ts",
+        "demo-target/src/pages/CheckoutPage.tsx",
+        "demo-target/src/cart/storage.ts"
+      ],
+      "root_cause": "Applied coupon is held only in React component state; nothing persists or restores it on reload.",
+      "fix_overlay": "demo-target/fixtures/fixed/src/checkout/useCoupon.ts",
+      "oracle": "demo-target/fixtures/oracles/D01-coupon-persists.oracle.ts",
+      "expected": { "buggy": "reproduced", "fixed": "not_reproduced" }
+    },
+    {
+      "case_id": "D02",
+      "defect_files": ["demo-target/src/cart/useCartTotals.ts"],
+      "relevant_files": [
+        "demo-target/src/cart/useCartTotals.ts",
+        "demo-target/src/cart/CartContext.tsx",
+        "demo-target/src/pages/CartPage.tsx"
+      ],
+      "root_cause": "useMemo dependency list uses lines.length; quantity edits mutate lines in place so the memoised subtotal never recomputes.",
+      "fix_overlay": "demo-target/fixtures/fixed/src/cart/useCartTotals.ts",
+      "oracle": "demo-target/fixtures/oracles/D02-subtotal-updates.oracle.ts",
+      "expected": { "buggy": "reproduced", "fixed": "not_reproduced" }
+    },
+    {
+      "case_id": "D05",
+      "defect_files": ["demo-target/src/catalog/Pagination.tsx"],
+      "relevant_files": [
+        "demo-target/src/catalog/Pagination.tsx",
+        "demo-target/src/pages/ShopPage.tsx"
+      ],
+      "root_cause": "Pagination links are built as /shop?page=N, discarding the category query parameter.",
+      "fix_overlay": "demo-target/fixtures/fixed/src/catalog/Pagination.tsx",
+      "oracle": "demo-target/fixtures/oracles/D05-filter-survives-pagination.oracle.ts",
+      "expected": { "buggy": "reproduced", "fixed": "not_reproduced" }
+    }
+  ]
+}

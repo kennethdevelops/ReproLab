@@ -1,0 +1,24 @@
+{
+  "suite_version": "1",
+  "note": "Public problem statements given to ReproLab as input. No answers, locations or oracles here.",
+  "cases": [
+    {
+      "case_id": "D01",
+      "title": "Discount disappears after checkout reload",
+      "bug_report": "I applied the coupon SAVE10 at checkout and the discount showed up, but when I refreshed the checkout page the discount was gone and I was back to paying full price.",
+      "start_path": "/shop"
+    },
+    {
+      "case_id": "D02",
+      "title": "Cart subtotal does not update with quantity",
+      "bug_report": "On the cart page, when I press + to change how many of an item I want, the quantity goes up but the subtotal at the bottom stays at the old amount.",
+      "start_path": "/shop"
+    },
+    {
+      "case_id": "D05",
+      "title": "Category filter lost on page 2",
+      "bug_report": "In the shop I filtered by the Kitchen category, then went to page 2 of the results. Page 2 shows products from every category and the filter seems to have been dropped.",
+      "start_path": "/shop"
+    }
+  ]
+}

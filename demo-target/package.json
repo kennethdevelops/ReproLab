@@ -1,0 +1,30 @@
+{
+  "name": "reprolab-demo-store",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:buggy && npm run build:fixed",
+    "build:buggy": "vite build --mode buggy --outDir dist/buggy",
+    "build:fixed": "vite build --mode fixed --outDir dist/fixed",
+    "typecheck": "tsc --noEmit",
+    "start": "node server/index.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "verify-oracles": "node scripts/verify-oracles.mjs"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}
