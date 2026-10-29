@@ -43,7 +43,7 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "SIM"]
-ignore = ["S101"]
+ignore = ["S101", "E501"]  # line length is the formatter's job
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S"]

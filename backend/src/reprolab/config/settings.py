@@ -40,7 +40,11 @@ class Settings(BaseSettings):
     )
 
     llm_provider: str = "anthropic"
-    llm_model: str = "claude-sonnet-5-5"
+    llm_model: str = "claude-opus-5-5"
+    llm_effort: str = "medium"
+    llm_max_tokens_per_call: int = 8000
+    # Server-side refusal fallback (Anthropic beta). Disable only if the account lacks access.
+    llm_refusal_fallback: bool = True
     anthropic_api_key: SecretStr | None = None
 
     embedding_provider: str = "fastembed"
@@ -68,6 +72,7 @@ class Settings(BaseSettings):
     github_token: SecretStr | None = None
 
     demo_admin_token: SecretStr | None = None
+    demo_cases_path: Path = Path("../benchmarks/cases/cases.v1.json")
 
     _split = field_validator("cors_allowed_origins", "local_extra_allowed_origins", mode="before")(
         _split_csv

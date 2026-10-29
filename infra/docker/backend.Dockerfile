@@ -15,6 +15,9 @@ WORKDIR /app
 COPY backend/pyproject.toml backend/uv.lock backend/README.md ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
+# Public problem statements only; benchmarks/ground-truth is never copied into any image.
+COPY benchmarks/cases /app/benchmarks/cases
+ENV DEMO_CASES_PATH=/app/benchmarks/cases/cases.v1.json
 RUN uv sync --frozen --no-dev \
  && useradd --uid 10001 --create-home reprolab \
  && mkdir -p /data/artifacts && chown -R reprolab /data

@@ -8,8 +8,7 @@ from sqlalchemy import inspect, text
 from reprolab.api.app import create_app
 from reprolab.db.seed import DEMO_PROJECT_ID, seed
 from reprolab.db.session import get_engine
-
-from .conftest import alembic_config
+from tests.conftest import alembic_config
 
 pytestmark = pytest.mark.integration
 

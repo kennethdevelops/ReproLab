@@ -11,9 +11,13 @@ Threat model and controls follow spec §12. Status column reflects what is imple
 | Demo fixture reset requires `DEMO_ADMIN_TOKEN` (constant-time compare) | Done, manually probed (403 without token) |
 | Demo server static path traversal | SPA fallback served; manually probed |
 | Ground truth outside indexed paths, never mounted into workers | Done by layout; automated test arrives with the indexer (M3) |
-| Browser origin allowlist on every request and redirect | M2 |
-| `file:`/`data:`/`javascript:`, metadata and private IPs rejected | M2 |
-| Typed browser tools only; no `evaluate()` for the model | M2 |
+| Browser origin allowlist on every request and redirect (Playwright route interception) | Done; unit + browser tests |
+| `file:`/`data:`/`javascript:`/credentials-in-URL rejected; link-local/metadata addresses always rejected; private resolution rejected when `allow_internal_ips=False` | Done; unit tests (DNS stubbed) |
+| Typed browser tools only; no `evaluate()`; Pydantic validation of every tool call; unknown tools rejected | Done; unit + browser tests |
+| Downloads disabled, service workers blocked, popups closed, fresh context per run | Done (config); not separately tested |
+| Start request cannot set origins, limits, model or prompt (`extra="forbid"`) | Done; integration tests |
+| Redaction of API keys, bearer tokens, JWTs, emails, sensitive headers/keys in steps, events, console/network logs | Done; unit tests. Screenshots and traces are not redacted (synthetic data only in demo) |
+| Artifact download by opaque ID, path containment check, `nosniff` | Done; integration test |
 | Prompt-injection fixtures in repo content and page DOM | M4 |
 | Restricted JSON test spec, isolated Node runner | M5 |
 | Public demo rate limits and cost caps | M8 |
