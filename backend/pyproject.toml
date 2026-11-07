@@ -19,6 +19,7 @@ dependencies = [
   "playwright==1.64.1",
   "anthropic>=2.3.0",
   "langgraph>=1.2.18",
+  "fastembed>=0.7",
 ]
 
 [dependency-groups]
@@ -71,6 +72,7 @@ asyncio_default_fixture_loop_scope = "function"
 markers = [
   "integration: needs PostgreSQL/Redis (DATABASE_URL must point at a test DB)",
   "browser: needs Playwright Chromium and the demo target",
+  "embedding: needs the local fastembed model (downloaded on first use)",
   "live: calls a real billed model provider; opt-in only",
 ]
-addopts = "-m 'not integration and not browser and not live'"
+addopts = "-m 'not integration and not browser and not live and not embedding'"

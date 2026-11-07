@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -74,6 +74,70 @@ test('lists projects and empty history from the API', async () => {
   expect(await screen.findByText(/None yet/)).toBeInTheDocument()
 })
 
+test('RAG explorer compares strategies and shows exact source lines for a hit', async () => {
+  const hit = (strategy: string) => ({
+    chunk_id: `c-${strategy}`,
+    path: 'src/checkout/useCoupon.ts',
+    kind: 'source',
+    start_line: 10,
+    end_line: 11,
+    symbol: 'useCoupon',
+    excerpt: 'export function useCoupon() {\n  return null',
+    score: 0.5,
+    ranks: { lexical: 1 },
+    citation_url: null,
+  })
+  const fetchMock = mockApi({
+    '/index': [
+      {
+        id: 's1',
+        commit_sha: 'abcdef1234567890',
+        ref: null,
+        source_kind: 'local',
+        status: 'ready',
+        embed_model: 'hashing-256',
+        embed_dim: 256,
+        parser_version: 'boundary-lines-v1',
+        progress: {
+          documents: 40,
+          chunks: 90,
+          chunker: 'boundary-lines-v1',
+          excluded: { excluded_directory: 8 },
+        },
+        error: null,
+        citation_base_url: null,
+        created_at: '',
+        indexed_at: '',
+      },
+    ],
+    'strategy=lexical': { strategy: 'lexical', hits: [hit('lexical')], timing_ms: 3 },
+    'strategy=vector': { strategy: 'vector', hits: [], timing_ms: 4 },
+    'strategy=hybrid': { strategy: 'hybrid', hits: [hit('hybrid')], timing_ms: 5 },
+    '/source': {
+      path: 'src/checkout/useCoupon.ts',
+      start_line: 10,
+      end_line: 11,
+      total_lines: 30,
+      content: 'export function useCoupon() {\n  return null',
+      commit_sha: 'abcdef1234567890',
+    },
+    '/api/v1/projects': [PROJECT],
+  })
+  renderAt('/explore')
+  expect(await screen.findByText('boundary-lines-v1')).toBeInTheDocument()
+  expect(screen.getByText('excluded directory: 8')).toBeInTheDocument()
+  await userEvent.type(screen.getByLabelText('Query'), 'coupon refresh')
+  await userEvent.selectOptions(screen.getByLabelText('Strategy'), 'compare')
+  await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+  expect(await screen.findByText('No matches.')).toBeInTheDocument()
+  const lexical = await screen.findByRole('region', { name: 'lexical results' })
+  await userEvent.click(within(lexical).getByRole('button', { name: /useCoupon\.ts:10-11/ }))
+  expect(await screen.findByText(/Lines 10–11 of 30/)).toBeInTheDocument()
+  const urls = fetchMock.mock.calls.map(([u]) => String(u))
+  expect(urls.filter((u) => u.includes('/search?'))).toHaveLength(3)
+  expect(urls.some((u) => u.includes('path=src%2Fcheckout%2FuseCoupon.ts'))).toBe(true)
+})
+
 test('shows API error envelope message', async () => {
   mockApi({
     '/api/v1/projects': () =>
@@ -96,6 +160,27 @@ test('new investigation form loads a demo case, warns about missing key and subm
       },
     ],
     '/api/v1/settings': SETTINGS,
+    // After submit the page navigates to the new investigation; serve its (queued) detail.
+    '/api/v1/investigations/inv1': {
+      id: 'inv1',
+      project_id: 'p1',
+      bug_report: 'Coupon disappears after reload.',
+      start_path: '/shop',
+      status: 'queued',
+      status_reason: null,
+      rag_mode: 'none',
+      model_id: 'stub',
+      limits: {},
+      usage: {},
+      cancel_requested: false,
+      created_at: '2026-10-28T00:00:00Z',
+      started_at: null,
+      completed_at: null,
+      result: null,
+      steps: [],
+      evidence: [],
+      findings: [],
+    },
     '/api/v1/investigations': () =>
       jsonResponse({ investigation_id: 'inv1', status: 'queued' }, 202),
   })

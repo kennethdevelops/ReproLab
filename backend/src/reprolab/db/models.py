@@ -6,8 +6,10 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    Computed,
     DateTime,
     ForeignKey,
     Integer,
@@ -16,7 +18,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -72,8 +74,70 @@ class RepoSnapshot(Base):
     error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _created_at()
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Canonical citation URL prefix at this commit (GitHub blob URL); None for local snapshots.
+    citation_base_url: Mapped[str | None] = mapped_column(String(500))
 
     project: Mapped[Project] = relationship(back_populates="snapshots")
+
+
+class SourceDocument(Base):
+    __tablename__ = "source_documents"
+    __table_args__ = (UniqueConstraint("snapshot_id", "path"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("repo_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    path: Mapped[str] = mapped_column(String(500))
+    kind: Mapped[str] = mapped_column(String(20))  # source | test | documentation | configuration
+    language: Mapped[str] = mapped_column(String(30))
+    content_sha: Mapped[str] = mapped_column(String(64))
+    # Full text is kept so read_source_file can serve only indexed material.
+    content: Mapped[str] = mapped_column(Text)
+    line_count: Mapped[int] = mapped_column(Integer)
+    meta: Mapped[dict[str, Any]] = mapped_column("metadata", default=dict)
+
+
+class SourceChunk(Base):
+    __tablename__ = "source_chunks"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_documents.id", ondelete="CASCADE"), index=True
+    )
+    # Denormalised so every query can be scoped to one snapshot without a join.
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("repo_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    start_line: Mapped[int] = mapped_column(Integer)
+    end_line: Mapped[int] = mapped_column(Integer)
+    symbol: Mapped[str | None] = mapped_column(String(200))
+    content: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    search_text: Mapped[str] = mapped_column(Text)
+    search_vector: Mapped[Any] = mapped_column(
+        TSVECTOR, Computed("to_tsvector('english', search_text)", persisted=True)
+    )
+    # Dimension varies with the embedding model; it is tracked on the snapshot (embed_dim).
+    embedding: Mapped[list[float] | None] = mapped_column(Vector())
+
+
+class RetrievalEvent(Base):
+    __tablename__ = "retrieval_events"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    investigation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("investigations.id", ondelete="CASCADE"), index=True
+    )
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("repo_snapshots.id", ondelete="CASCADE"), index=True
+    )
+    query: Mapped[str] = mapped_column(Text)
+    mode: Mapped[str] = mapped_column(String(20))
+    chunk_ids: Mapped[list[Any]] = mapped_column(default=list)
+    rankings: Mapped[dict[str, Any]] = mapped_column(default=dict)
+    timing_ms: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = _created_at()
 
 
 class Investigation(Base):

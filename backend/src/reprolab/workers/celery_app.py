@@ -20,7 +20,7 @@ celery_app.conf.update(
     task_default_queue="investigations",
     task_routes={
         "reprolab.workers.tasks.run_investigation": {"queue": "investigations"},
-        "reprolab.workers.tasks.index_snapshot": {"queue": "indexing"},
+        "reprolab.workers.tasks.index_project": {"queue": "indexing"},
     },
     broker_connection_retry_on_startup=True,
 )

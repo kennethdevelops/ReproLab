@@ -49,6 +49,17 @@ class Settings(BaseSettings):
 
     embedding_provider: str = "fastembed"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_cache_dir: Path | None = None
+
+    # Operator-exported local snapshots (`python -m reprolab.indexing.local_snapshot export`).
+    snapshots_dir: Path = Path("./data/snapshots")
+    github_api_url: str = "https://api.github.com"
+    max_index_files: int = 2000
+    max_index_file_bytes: int = 200_000
+    max_index_chunks: int = 20_000
+    retrieval_top_k: int = 6
+    retrieval_candidates: int = 30
+    retrieval_rrf_k: int = 60
 
     max_browser_steps: int = 25
     max_retrieval_calls: int = 10

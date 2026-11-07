@@ -19,6 +19,55 @@ export interface Project {
   current_snapshot: Snapshot | null
 }
 
+export interface IndexStatus {
+  id: string
+  commit_sha: string
+  ref: string | null
+  source_kind: string
+  status: string
+  embed_model: string
+  embed_dim: number | null
+  parser_version: string
+  progress: Record<string, unknown>
+  error: string | null
+  citation_base_url: string | null
+  created_at: string
+  indexed_at: string | null
+}
+
+export type SearchStrategy = 'lexical' | 'vector' | 'hybrid'
+
+export interface SearchHit {
+  chunk_id: string
+  path: string
+  kind: string
+  start_line: number
+  end_line: number
+  symbol: string | null
+  excerpt: string
+  score: number
+  ranks: Partial<Record<'lexical' | 'vector', number>>
+  citation_url: string | null
+}
+
+export interface SearchResponse {
+  snapshot_id: string
+  commit_sha: string
+  strategy: SearchStrategy
+  query: string
+  timing_ms: number
+  hits: SearchHit[]
+}
+
+export interface SourceExcerpt {
+  path: string
+  start_line: number
+  end_line: number
+  total_lines: number
+  content: string
+  commit_sha: string
+}
+
 export interface Readiness {
   status: 'ready' | 'not_ready'
   checks: Record<string, string>

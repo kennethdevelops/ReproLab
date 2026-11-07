@@ -26,3 +26,10 @@ def run_investigation(investigation_id: str) -> str:
     from reprolab.workers.investigation_job import execute_investigation
 
     return execute_investigation(uuid.UUID(investigation_id))
+
+
+@celery_app.task(name="reprolab.workers.tasks.index_project", acks_late=True, time_limit=1800)
+def index_project(snapshot_id: str) -> str:
+    from reprolab.indexing.pipeline import index_snapshot
+
+    return index_snapshot(uuid.UUID(snapshot_id))

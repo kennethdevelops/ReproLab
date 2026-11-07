@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom'
 const NAV = [
   { to: '/', label: 'Projects', end: true },
   { to: '/investigate', label: 'New investigation', end: false },
+  { to: '/explore', label: 'RAG Explorer', end: false },
   { to: '/settings', label: 'Settings', end: false },
 ]
 

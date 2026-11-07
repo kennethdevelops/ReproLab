@@ -23,7 +23,8 @@ def seed() -> None:
             "Synthetic storefront with intentionally injected defects. "
             "Authorised test environment operated by ReproLab."
         )
-        project.repo_url = None
+        # Operator-exported snapshot of demo-target (see reprolab.indexing.local_snapshot).
+        project.repo_url = "local://demo-target"
         project.repo_ref = None
         project.test_origin = settings.demo_allowed_origin
         project.mode = "demo"
