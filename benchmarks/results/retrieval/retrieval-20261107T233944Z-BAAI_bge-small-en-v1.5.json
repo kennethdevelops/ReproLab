@@ -1,0 +1,188 @@
+{
+  "kind": "retrieval_eval",
+  "suite_version": "1",
+  "ran_at": "2026-11-07T23:39:44.130273+00:00",
+  "repo_commit": "c6efef593992569d9f35b9724f4c08662dfd3840",
+  "snapshot_commit": "c6efef593992569d9f35b9724f4c08662dfd3840",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "query": "bug_report text, verbatim",
+  "level": "file",
+  "summary": {
+    "lexical": {
+      "recall@1": 0.2778,
+      "recall@3": 0.4444,
+      "recall@5": 0.6667,
+      "recall@10": 1.0,
+      "mrr": 0.2889
+    },
+    "vector": {
+      "recall@1": 0.3889,
+      "recall@3": 0.7222,
+      "recall@5": 0.7222,
+      "recall@10": 1.0,
+      "mrr": 0.5556
+    },
+    "hybrid": {
+      "recall@1": 0.2778,
+      "recall@3": 0.6667,
+      "recall@5": 0.7778,
+      "recall@10": 1.0,
+      "mrr": 0.4167
+    }
+  },
+  "rows": [
+    {
+      "case_id": "D01",
+      "strategy": "lexical",
+      "recall@1": 0.0,
+      "recall@3": 0.0,
+      "recall@5": 0.3333,
+      "recall@10": 1.0,
+      "mrr": 0.1667,
+      "top_files": [
+        "docs/ARCHITECTURE.md",
+        "tests/server.test.mjs",
+        "server/data.mjs",
+        "src/pages/CheckoutPage.tsx",
+        "src/catalog/Pagination.tsx"
+      ],
+      "timing_ms": 28
+    },
+    {
+      "case_id": "D01",
+      "strategy": "vector",
+      "recall@1": 0.3333,
+      "recall@3": 0.6667,
+      "recall@5": 0.6667,
+      "recall@10": 1.0,
+      "mrr": 0.5,
+      "top_files": [
+        "src/pages/CheckoutPage.tsx",
+        "src/checkout/useCoupon.ts",
+        "docs/ARCHITECTURE.md",
+        "server/data.mjs",
+        "server/coupons.mjs"
+      ],
+      "timing_ms": 47
+    },
+    {
+      "case_id": "D01",
+      "strategy": "hybrid",
+      "recall@1": 0.0,
+      "recall@3": 0.3333,
+      "recall@5": 0.6667,
+      "recall@10": 1.0,
+      "mrr": 0.25,
+      "top_files": [
+        "docs/ARCHITECTURE.md",
+        "src/pages/CheckoutPage.tsx",
+        "server/data.mjs",
+        "src/checkout/useCoupon.ts",
+        "tests/server.test.mjs"
+      ],
+      "timing_ms": 30
+    },
+    {
+      "case_id": "D02",
+      "strategy": "lexical",
+      "recall@1": 0.3333,
+      "recall@3": 0.3333,
+      "recall@5": 0.6667,
+      "recall@10": 1.0,
+      "mrr": 0.2,
+      "top_files": [
+        "src/pages/CartPage.tsx",
+        "src/catalog/Pagination.tsx",
+        "src/styles.css",
+        "src/pages/ShopPage.tsx",
+        "src/cart/useCartTotals.ts"
+      ],
+      "timing_ms": 22
+    },
+    {
+      "case_id": "D02",
+      "strategy": "vector",
+      "recall@1": 0.3333,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 1.0,
+      "top_files": [
+        "src/cart/useCartTotals.ts",
+        "src/pages/CartPage.tsx",
+        "src/cart/CartContext.tsx",
+        "src/cart/storage.ts",
+        "src/pages/CheckoutPage.tsx"
+      ],
+      "timing_ms": 25
+    },
+    {
+      "case_id": "D02",
+      "strategy": "hybrid",
+      "recall@1": 0.3333,
+      "recall@3": 0.6667,
+      "recall@5": 0.6667,
+      "recall@10": 1.0,
+      "mrr": 0.5,
+      "top_files": [
+        "src/pages/CartPage.tsx",
+        "src/cart/useCartTotals.ts",
+        "src/styles.css",
+        "src/pages/ShopPage.tsx",
+        "src/cart/storage.ts"
+      ],
+      "timing_ms": 37
+    },
+    {
+      "case_id": "D05",
+      "strategy": "lexical",
+      "recall@1": 0.5,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 0.5,
+      "top_files": [
+        "src/pages/ShopPage.tsx",
+        "src/catalog/Pagination.tsx",
+        "src/cart/useCartTotals.ts",
+        "server/data.mjs",
+        "src/pages/CartPage.tsx"
+      ],
+      "timing_ms": 18
+    },
+    {
+      "case_id": "D05",
+      "strategy": "vector",
+      "recall@1": 0.5,
+      "recall@3": 0.5,
+      "recall@5": 0.5,
+      "recall@10": 1.0,
+      "mrr": 0.1667,
+      "top_files": [
+        "src/pages/ShopPage.tsx",
+        "server/data.mjs",
+        "docs/ARCHITECTURE.md",
+        "src/pages/CartPage.tsx",
+        "src/pages/CheckoutPage.tsx"
+      ],
+      "timing_ms": 26
+    },
+    {
+      "case_id": "D05",
+      "strategy": "hybrid",
+      "recall@1": 0.5,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "recall@10": 1.0,
+      "mrr": 0.5,
+      "top_files": [
+        "src/pages/ShopPage.tsx",
+        "src/catalog/Pagination.tsx",
+        "src/pages/CartPage.tsx",
+        "server/data.mjs",
+        "docs/ARCHITECTURE.md"
+      ],
+      "timing_ms": 33
+    }
+  ]
+}

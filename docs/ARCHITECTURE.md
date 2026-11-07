@@ -15,7 +15,7 @@ See spec §5 for the target diagram. This page records what exists and how it fi
 | `demo-target` | demo-target | sandbox, edge | Buggy storefront the agent investigates |
 | `demo-target-fixed` | demo-target | sandbox, edge | Fixed variant; validation/evaluation only |
 | `frontend` | frontend | edge | Static React build |
-| `test-runner` (M5) | Node + Playwright Test | sandbox only | Compiles restricted JSON test specs and runs them against fixtures |
+| `test-runner` | Node + Playwright Test | sandbox only | Compiles restricted JSON test specs and runs them against fixtures |
 
 `core` and `sandbox` are Docker `internal` networks: containers on them alone have no outside route.
 

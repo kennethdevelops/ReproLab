@@ -18,8 +18,8 @@ Threat model and controls follow spec §12. Status column reflects what is imple
 | Start request cannot set origins, limits, model or prompt (`extra="forbid"`) | Done; integration tests |
 | Redaction of API keys, bearer tokens, JWTs, emails, sensitive headers/keys in steps, events, console/network logs | Done; unit tests. Screenshots and traces are not redacted (synthetic data only in demo) |
 | Artifact download by opaque ID, path containment check, `nosniff` | Done; integration test |
-| Prompt-injection fixtures in repo content and page DOM | M4 |
-| Restricted JSON test spec, isolated Node runner | M5 |
+| Prompt-injection fixtures in repo content | Done: retrieved source is fenced, the fence cannot be closed from inside, and source never counts as evidence (`tests/security/test_retrieval_tool.py`). Page-DOM injection fixture not built |
+| Restricted JSON test spec, isolated Node runner | Done: allowlisted actions/locators/assertions, no code accepted, spec text emitted only as JSON string literals, targets fixed by env, sandbox network only (`test-runner/tests`) |
 | Public demo rate limits and cost caps | M8 |
 
 ## Known gap: container egress
