@@ -5,7 +5,7 @@ import { API_BASE_URL, apiPost } from '../api/client'
 import { ErrorBlock, LoadingBlock } from '../components/QueryState'
 import { StatusBadge } from '../components/StatusBadge'
 import { isTerminal, useInvestigation } from '../hooks/useInvestigation'
-import type { InvestigationDetail, Step } from '../types/api'
+import type { InvestigationDetail, RegressionTest, Step } from '../types/api'
 
 const artifactUrl = (id: string) => `${API_BASE_URL}/api/v1/artifacts/${id}/download`
 
@@ -48,6 +48,9 @@ export function InvestigationPage() {
       </section>
 
       {data.status_reason && <Outcome data={data} />}
+      {data.result?.regression_test && (
+        <RegressionTestPanel id={data.id} test={data.result.regression_test} />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Timeline steps={data.steps} />
@@ -165,6 +168,11 @@ function Outcome({ data }: { data: InvestigationDetail }) {
                   <li key={i}>
                     <span className="font-mono text-xs text-slate-500">{h.confidence}</span>{' '}
                     {h.statement}
+                    {h.citations && h.citations.length > 0 && (
+                      <span className="ml-1 font-mono text-xs text-slate-500">
+                        (source: {h.citations.join(', ')})
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -175,8 +183,73 @@ function Outcome({ data }: { data: InvestigationDetail }) {
             {r.run.browser_version} ·{' '}
             {r.run.estimated_cost_usd !== null
               ? `~$${r.run.estimated_cost_usd.toFixed(4)} (estimate)`
-              : 'cost unknown'}
+              : 'cost not estimated'}
           </p>
+        </>
+      )}
+    </section>
+  )
+}
+
+function RegressionTestPanel({ id, test }: { id: string; test: RegressionTest }) {
+  const [copied, setCopied] = useState(false)
+  const v = test.validation
+  const button =
+    'rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800'
+  return (
+    <section
+      aria-labelledby="regression-heading"
+      className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+    >
+      <h2 id="regression-heading" className="flex items-center gap-2 font-medium">
+        Proposed regression test <StatusBadge status={test.status} />
+      </h2>
+      <p className="text-sm">{test.reason}</p>
+      {v?.buggy && v.fixed && (
+        <ul className="font-mono text-xs text-slate-600 dark:text-slate-400">
+          <li>
+            buggy fixture: {v.buggy.outcome}
+            {v.buggy.failing_step ? ` at "${v.buggy.failing_step}"` : ''}
+          </li>
+          <li>fixed fixture: {v.fixed.outcome}</li>
+        </ul>
+      )}
+      {test.status !== 'validated' && test.code && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          Not validated. Review the test before relying on it.
+        </p>
+      )}
+      {test.code && (
+        <>
+          <pre className="max-h-80 overflow-auto rounded bg-slate-100 p-3 text-xs dark:bg-slate-950">
+            <code>{test.code}</code>
+          </pre>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={button}
+              onClick={async () => {
+                await navigator.clipboard.writeText(test.code ?? '')
+                setCopied(true)
+              }}
+            >
+              {copied ? 'Copied' : 'Copy test'}
+            </button>
+            <a
+              className={button}
+              href={`${API_BASE_URL}/api/v1/investigations/${id}/regression-test.spec.ts`}
+              download
+            >
+              Download .spec.ts
+            </a>
+            <a
+              className={button}
+              href={`${API_BASE_URL}/api/v1/investigations/${id}/regression-test.json`}
+              download
+            >
+              Download spec JSON
+            </a>
+          </div>
         </>
       )}
     </section>

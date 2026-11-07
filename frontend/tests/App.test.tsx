@@ -188,7 +188,7 @@ test('new investigation form loads a demo case, warns about missing key and subm
   await userEvent.click(await screen.findByRole('button', { name: /D01/ }))
   expect(screen.getByLabelText(/^Bug report/)).toHaveValue('Coupon disappears after reload.')
   expect(screen.getByLabelText('Start path')).toHaveValue('/shop')
-  expect(await screen.findByText(/No model provider key is configured/)).toBeInTheDocument()
+  expect(await screen.findByText(/No model provider is configured/)).toBeInTheDocument()
 
   await userEvent.click(screen.getByRole('button', { name: 'Run investigation' }))
   const post = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST')

@@ -65,6 +65,9 @@ def _assess(messages: Any) -> list[tuple[str, dict[str, Any]]]:
                     "Apply SAVE10",
                     "Reload",
                 ],  # fmt: skip
+                "regression_check": None
+                if discount_kept
+                else {"locator": SUMMARY, "expected_text": "Discount (SAVE10)"},
                 "hypotheses": [],
             },
         )

@@ -21,6 +21,7 @@ class StepRecord:
     tool: str
     ok: bool
     output: str
+    input: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

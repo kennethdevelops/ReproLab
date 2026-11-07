@@ -136,7 +136,7 @@ def test_cancel_before_start(
         ({"start_path": "//evil.test"}, "VALIDATION_ERROR"),
         ({"test_origin": "http://evil.test"}, "VALIDATION_ERROR"),
         ({"max_browser_steps": 10_000}, "VALIDATION_ERROR"),
-        ({"rag_mode": "hybrid"}, "RAG_UNAVAILABLE"),
+        ({"rag_mode": "hybrid"}, "RAG_INDEX_MISSING"),
         ({"bug_report": "x" * 5000}, "BUG_REPORT_TOO_LONG"),
     ],
 )
@@ -148,3 +148,33 @@ def test_start_rejects_policy_overrides(
     response = client.post("/api/v1/investigations", json=body)
     assert response.status_code == 422
     assert response.json()["error"]["code"] == code
+
+
+def test_d01_regression_test_validated_on_fixtures(
+    project_id: uuid.UUID, artifacts: Path, test_runner_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """M5 exit gate: the generated test fails on buggy at the assertion and passes on fixed."""
+    monkeypatch.setattr(get_settings(), "test_runner_url", test_runner_url)
+    monkeypatch.setattr(
+        inv_api, "enqueue_investigation", [_inline(lambda s: StubModelClient(d01_script()))]
+    )
+    client = TestClient(create_app())
+    r = client.post("/api/v1/investigations", json={
+        "project_id": str(project_id), "bug_report": "Coupon disappears after checkout refresh.",
+        "start_path": "/shop"})  # fmt: skip
+    inv_id = r.json()["investigation_id"]
+    rt = client.get(f"/api/v1/investigations/{inv_id}").json()["result"]["regression_test"]
+    assert rt["status"] == "validated", rt
+    assert rt["validation"]["buggy"]["outcome"] == "assertion_failed"
+    assert rt["validation"]["buggy"]["failing_step"].startswith("assert 1")
+    assert rt["validation"]["fixed"]["outcome"] == "passed"
+    actions = [s["action"] for s in rt["spec"]["steps"]]
+    assert actions == ["click", "goto", "fill", "click", "wait_for_text", "reload"]
+
+    code = client.get(f"/api/v1/investigations/{inv_id}/regression-test.spec.ts")
+    assert code.status_code == 200 and "attachment" in code.headers["content-disposition"]
+    assert 'toContainText("Discount (SAVE10)")' in code.text
+    spec = client.get(f"/api/v1/investigations/{inv_id}/regression-test.json").json()
+    assert spec["status"] == "validated"
+    md = client.get(f"/api/v1/investigations/{inv_id}/report.md").text
+    assert "## Proposed regression test" in md and "**validated**" in md

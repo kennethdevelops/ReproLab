@@ -96,3 +96,36 @@ def buggy_origin() -> Iterator[str]:
 @pytest.fixture(scope="session")
 def fixed_origin() -> Iterator[str]:
     yield from _start_demo("fixed")
+
+
+RUNNER_DIR = BACKEND_DIR.parent / "test-runner"
+
+
+@pytest.fixture(scope="session")
+def test_runner_url(buggy_origin: str, fixed_origin: str) -> Iterator[str]:
+    """The isolated Node test runner, pointed at the buggy and fixed demo fixtures."""
+    if not (RUNNER_DIR / "node_modules" / "@playwright" / "test").exists():
+        pytest.skip("test-runner dependencies missing; run npm install in test-runner/")
+    port = _free_port()
+    env = {**os.environ, "BUGGY_URL": buggy_origin, "FIXED_URL": fixed_origin,
+           "DEMO_ADMIN_TOKEN": "test-admin", "PORT": str(port)}  # fmt: skip
+    proc = subprocess.Popen(  # noqa: S603 - fixed argv, test-only
+        ["node", "src/server.mjs"],  # noqa: S607
+        cwd=RUNNER_DIR, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )  # fmt: skip
+    url = f"http://127.0.0.1:{port}"
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen(f"{url}/healthz", timeout=1):  # noqa: S310
+                break
+        except OSError:
+            time.sleep(0.1)
+    else:
+        proc.kill()
+        raise RuntimeError("test runner did not start")
+    try:
+        yield url
+    finally:
+        proc.terminate()
+        proc.wait(timeout=5)

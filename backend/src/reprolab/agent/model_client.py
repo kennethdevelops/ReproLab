@@ -1,8 +1,10 @@
 """Narrow model interface (spec §4 "LLM implementation rule").
 
 The agent only needs: send system + messages + tools, get back tool calls, text and usage.
-``AnthropicModelClient`` is the real provider; ``StubModelClient`` replays scripted turns for
-offline tests and CI and never makes a network call.
+Providers (``LLM_PROVIDER``): ``anthropic`` (official SDK), ``openai_compatible`` (any
+``/v1/chat/completions`` server: Ollama, LM Studio, OpenAI, Gemini, Groq, OpenRouter, ...) and
+``replay`` (a recorded transcript, labelled as such in reports). ``StubModelClient`` replays
+scripted turns for offline tests and never makes a network call.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Protocol
 
 import anthropic
@@ -47,6 +50,9 @@ class Usage:
         self.cache_write_tokens += other.cache_write_tokens
 
     def cost_usd(self, model: str) -> float | None:
+        """Estimated USD, or ``None`` when the model has no known price ("not estimated")."""
+        if model.startswith("replay:"):
+            return 0.0
         price = PRICES_PER_MTOK.get(model)
         if price is None:
             return None
@@ -216,9 +222,56 @@ class StubModelClient:
         )
 
 
+def load_prices_file(path: Path) -> None:
+    """Merge an operator price table into ``PRICES_PER_MTOK`` (USD per million tokens)."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ModelUnavailable(
+            "PRICES_FILE_INVALID", f"Cannot read LLM_PRICES_FILE: {exc}"
+        ) from exc
+    if not isinstance(data, dict):
+        raise ModelUnavailable("PRICES_FILE_INVALID", "LLM_PRICES_FILE must be a JSON object.")
+    for model, price in data.items():
+        if not isinstance(price, dict) or not {"input", "output"} <= price.keys():
+            raise ModelUnavailable(
+                "PRICES_FILE_INVALID", f"Price for {model!r} needs 'input' and 'output'."
+            )
+        p: dict[str, Any] = price
+        PRICES_PER_MTOK[str(model)] = {
+            "input": float(p["input"]),
+            "output": float(p["output"]),
+            "cache_read": float(p.get("cache_read", p["input"])),
+            "cache_write": float(p.get("cache_write", p["input"])),
+        }
+
+
 def build_model_client(settings: Settings) -> ModelClient:
+    if settings.llm_prices_file is not None:
+        load_prices_file(settings.llm_prices_file)
+    client: ModelClient
     if settings.llm_provider == "anthropic":
-        return AnthropicModelClient(settings)
+        client = AnthropicModelClient(settings)
+    elif settings.llm_provider == "openai_compatible":
+        from reprolab.agent.openai_compatible import OpenAICompatibleModelClient
+
+        client = OpenAICompatibleModelClient(settings)
+    elif settings.llm_provider == "replay":
+        from reprolab.agent.replay import ReplayModelClient
+
+        if settings.llm_replay_path is None:
+            raise ModelUnavailable("PROVIDER_NOT_CONFIGURED", "LLM_REPLAY_PATH is not set.")
+        return ReplayModelClient.from_file(settings.llm_replay_path)
+    else:
+        client = _unsupported(settings)
+    if settings.llm_record_path is not None:
+        from reprolab.agent.replay import RecordingModelClient
+
+        client = RecordingModelClient(client, settings.llm_record_path)
+    return client
+
+
+def _unsupported(settings: Settings) -> ModelClient:
     if settings.llm_provider == "stub" and not settings.is_public_demo:
         raise ModelUnavailable(
             "STUB_REQUIRES_SCRIPT", "The stub provider is only usable from tests with a script."

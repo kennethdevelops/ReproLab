@@ -77,6 +77,7 @@ export interface PublicSettings {
   app_mode: string
   llm_provider: string
   llm_model: string
+  llm_base_url?: string | null
   llm_configured: boolean
   embedding_provider: string
   embedding_model: string
@@ -160,7 +161,13 @@ export interface InvestigationResult {
   expected_behaviour: string | null
   observed_behaviour: string | null
   reproduction_steps: string[]
-  hypotheses: { statement: string; confidence: string; verification: string }[]
+  hypotheses: {
+    statement: string
+    confidence: string
+    verification: string
+    citations?: string[]
+  }[]
+  regression_test?: RegressionTest | null
   run: {
     model_id: string
     model_calls: number
@@ -176,4 +183,20 @@ export interface InvestigationDetail extends InvestigationSummary {
   steps: Step[]
   evidence: Evidence[]
   findings: Finding[]
+}
+
+export interface RegressionRun {
+  started: string
+  finished: string
+  outcome: 'passed' | 'assertion_failed' | 'setup_failed' | 'error'
+  failing_step: string | null
+  message: string
+}
+
+export interface RegressionTest {
+  status: 'validated' | 'invalid' | 'unvalidated' | 'not_generated'
+  reason: string
+  spec: Record<string, unknown> | null
+  code: string | null
+  validation: { buggy?: RegressionRun; fixed?: RegressionRun; errors?: string[] } | null
 }

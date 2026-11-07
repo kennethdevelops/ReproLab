@@ -5,6 +5,10 @@ const NEUTRAL = 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-2
 
 const TONES: Record<string, string> = {
   ok: GOOD,
+  validated: GOOD,
+  invalid: BAD,
+  unvalidated: WARN,
+  not_generated: NEUTRAL,
   ready: GOOD,
   passed_oracle: GOOD,
   reproduced: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300',

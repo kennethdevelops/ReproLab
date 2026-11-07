@@ -100,7 +100,26 @@ def render_markdown(
     if result["hypotheses"]:
         lines += ["", "## Root-cause hypotheses (NOT VERIFIED)", ""]
         for h in result["hypotheses"]:
-            lines.append(f"- ({h['confidence']} confidence) {h['statement']}")
+            cites = ", ".join(f"`{c}`" for c in h.get("citations") or [])
+            lines.append(f"- ({h['confidence']} confidence) {h['statement']}"
+                         + (f" (source: {cites})" if cites else ""))  # fmt: skip
+    rt = result.get("regression_test")
+    if rt:
+        lines += [
+            "",
+            "## Proposed regression test",
+            "",
+            f"- Status: **{rt['status']}**: {rt['reason']}",
+        ]
+        if rt.get("validation") and rt["validation"].get("buggy"):
+            b, f = rt["validation"]["buggy"], rt["validation"]["fixed"]
+            lines.append(
+                f"- Buggy fixture: {b['outcome']}"
+                + (f" at `{b['failing_step']}`" if b.get("failing_step") else "")
+            )
+            lines.append(f"- Fixed fixture: {f['outcome']}")
+        if rt.get("code"):
+            lines += ["", "```ts", rt["code"].rstrip(), "```"]
     if evidence:
         lines += ["", "## Evidence", ""]
         lines += [f"- {e['type']}: {e['label']} (sha256 {e['sha256'][:12]}…)" for e in evidence]
@@ -110,11 +129,16 @@ def render_markdown(
         "",
         "## Run details",
         "",
+        *(
+            ["- **Replay run:** model responses come from a recorded transcript, not a live model."]
+            if str(run["model_id"]).startswith("replay:")
+            else []
+        ),
         f"- Model: {run['model_id']} (prompt {run['prompt_revision']}), {run['model_calls']} calls",
         f"- Browser: Chromium {run['browser_version']}, viewport {run['viewport']}",
         f"- Browser actions: {run['browser_steps']}",
         f"- Tokens: {run['usage']}",
-        f"- Estimated cost: {'$' + format(cost, '.4f') if cost is not None else 'unknown'} (estimate, not an invoice)",
+        f"- Estimated cost: {'$' + format(cost, '.4f') if cost is not None else 'not estimated (no price for this model)'} (estimate, not an invoice)",
         "",
     ]
     return "\n".join(lines)

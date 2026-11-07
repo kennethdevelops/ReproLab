@@ -1,0 +1,14 @@
+{
+  "name": "reprolab-test-runner",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Isolated validator: accepts a restricted JSON regression-test spec, generates Playwright Test code deterministically and runs it against the demo fixtures only.",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@playwright/test": "1.64.1"
+  }
+}

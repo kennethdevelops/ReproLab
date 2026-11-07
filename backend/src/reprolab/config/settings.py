@@ -39,8 +39,21 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000"]
     )
 
+    # anthropic | openai_compatible | replay (stub is test-only)
     llm_provider: str = "anthropic"
     llm_model: str = "claude-opus-5-5"
+    # openai_compatible: base URL of a /v1 chat-completions API (Ollama, LM Studio, OpenAI, ...).
+    llm_base_url: str | None = None
+    # Generic key for openai_compatible; local servers usually need none.
+    llm_api_key: SecretStr | None = None
+    llm_timeout_seconds: float = 180.0
+    # Send `strict: true` on function tools. Many local servers reject or ignore it.
+    llm_strict_tools: bool = False
+    # Optional JSON file {model: {input, output, cache_read, cache_write}} in USD per MTok.
+    llm_prices_file: Path | None = None
+    # replay: recorded transcript to replay. record: write each live turn to this path.
+    llm_replay_path: Path | None = None
+    llm_record_path: Path | None = None
     llm_effort: str = "medium"
     llm_max_tokens_per_call: int = 8000
     # Server-side refusal fallback (Anthropic beta). Disable only if the account lacks access.
@@ -83,6 +96,8 @@ class Settings(BaseSettings):
     github_token: SecretStr | None = None
 
     demo_admin_token: SecretStr | None = None
+    # Isolated Node Playwright Test runner (test-runner/). Unset: tests are not generated.
+    test_runner_url: str | None = None
     demo_cases_path: Path = Path("../benchmarks/cases/cases.v1.json")
 
     _split = field_validator("cors_allowed_origins", "local_extra_allowed_origins", mode="before")(
@@ -93,14 +108,24 @@ class Settings(BaseSettings):
     def is_public_demo(self) -> bool:
         return self.app_mode is AppMode.PUBLIC_DEMO
 
+    @property
+    def llm_configured(self) -> bool:
+        if self.llm_provider == "anthropic":
+            return self.anthropic_api_key is not None
+        if self.llm_provider == "openai_compatible":
+            return bool(self.llm_base_url) and bool(self.llm_model)
+        if self.llm_provider == "replay":
+            return self.llm_replay_path is not None and self.llm_replay_path.is_file()
+        return self.llm_provider == "stub"
+
     def public_view(self) -> dict[str, object]:
         """Settings safe to show in the UI. Never includes secrets."""
         return {
             "app_mode": self.app_mode.value,
             "llm_provider": self.llm_provider,
             "llm_model": self.llm_model,
-            "llm_configured": self.llm_provider == "stub"
-            or (self.llm_provider == "anthropic" and self.anthropic_api_key is not None),
+            "llm_base_url": self.llm_base_url if self.llm_provider == "openai_compatible" else None,
+            "llm_configured": self.llm_configured,
             "embedding_provider": self.embedding_provider,
             "embedding_model": self.embedding_model,
             "limits": {

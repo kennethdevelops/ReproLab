@@ -28,6 +28,7 @@ from reprolab.db.models import (
 )
 from reprolab.db.session import session_scope
 from reprolab.reports.report import render_markdown
+from reprolab.retrieval.search import current_snapshot
 
 router = APIRouter(tags=["investigations"])
 
@@ -149,6 +150,7 @@ def _limits(settings: Settings) -> dict[str, Any]:
         "max_input_tokens": settings.max_input_tokens_per_run,
         "max_output_tokens": settings.max_output_tokens_per_run,
         "max_cost_usd": settings.max_run_cost_usd,
+        "max_retrieval_calls": settings.max_retrieval_calls,
     }
 
 
@@ -164,13 +166,16 @@ def start_investigation(body: StartInvestigation, request: Request, db: DbSessio
     project = db.get(Project, body.project_id)
     if project is None or (settings.is_public_demo and project.mode != "demo"):
         raise ApiError(404, "PROJECT_NOT_FOUND", "Project not found.")
+    snapshot_id = None
     if body.rag_mode != "none":
-        # Repository retrieval arrives with milestone M3/M4; refuse rather than silently ignore.
-        raise ApiError(
-            422,
-            "RAG_UNAVAILABLE",
-            "Repository retrieval is not available yet; use rag_mode 'none'.",
-        )
+        snapshot = current_snapshot(db, project.id)
+        if snapshot is None:
+            raise ApiError(
+                422,
+                "RAG_INDEX_MISSING",
+                "This project has no ready repository index. Index it first or use rag_mode 'none'.",
+            )
+        snapshot_id = snapshot.id
     active = db.scalar(
         select(func.count())
         .select_from(Investigation)
@@ -183,7 +188,7 @@ def start_investigation(body: StartInvestigation, request: Request, db: DbSessio
 
     inv = Investigation(
         project_id=project.id,
-        snapshot_id=None,
+        snapshot_id=snapshot_id,
         bug_report=body.bug_report,
         start_path=body.start_path,
         viewport=body.viewport.model_dump() if body.viewport else {"width": 1365, "height": 768},
@@ -300,6 +305,26 @@ def download_artifact(artifact_id: uuid.UUID, db: DbSession) -> FileResponse:
         content_disposition_type=disposition,
         headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=300"},
     )
+
+
+@router.get("/investigations/{investigation_id}/regression-test.spec.ts")
+def regression_test_code(investigation_id: uuid.UUID, db: DbSession) -> PlainTextResponse:
+    rt = (_get(db, investigation_id).result or {}).get("regression_test") or {}
+    if not rt.get("code"):
+        raise ApiError(404, "TEST_NOT_AVAILABLE", "No regression test was generated for this run.")
+    return PlainTextResponse(rt["code"], media_type="text/plain; charset=utf-8", headers={
+        "Content-Disposition": f'attachment; filename="reprolab-{investigation_id}.spec.ts"',
+        "X-Content-Type-Options": "nosniff",
+    })  # fmt: skip
+
+
+@router.get("/investigations/{investigation_id}/regression-test.json")
+def regression_test_spec(investigation_id: uuid.UUID, db: DbSession) -> dict[str, Any]:
+    rt = (_get(db, investigation_id).result or {}).get("regression_test") or {}
+    if not rt.get("spec"):
+        raise ApiError(404, "TEST_NOT_AVAILABLE", "No regression-test spec exists for this run.")
+    return {"status": rt["status"], "reason": rt["reason"], "spec": rt["spec"],
+            "validation": rt.get("validation")}  # fmt: skip
 
 
 @router.get("/investigations/{investigation_id}/report.md", response_class=PlainTextResponse)

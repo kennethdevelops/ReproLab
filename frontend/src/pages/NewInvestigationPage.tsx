@@ -34,6 +34,7 @@ export function NewInvestigationPage() {
   const [bugReport, setBugReport] = useState('')
   const [startPath, setStartPath] = useState('/')
   const [viewport, setViewport] = useState<keyof typeof VIEWPORTS>('desktop')
+  const [ragMode, setRagMode] = useState<'none' | 'lexical' | 'vector' | 'hybrid'>('none')
 
   const effectiveProject = projectId || projects.data?.[0]?.id || ''
   const maxChars = settings.data?.limits.max_bug_report_chars ?? 4000
@@ -44,7 +45,7 @@ export function NewInvestigationPage() {
         project_id: effectiveProject,
         bug_report: bugReport,
         start_path: startPath,
-        rag_mode: 'none',
+        rag_mode: ragMode,
         viewport: VIEWPORTS[viewport],
       }),
     onSuccess: (data) => navigate(`/investigations/${data.investigation_id}`),
@@ -147,9 +148,23 @@ export function NewInvestigationPage() {
             </label>
           </div>
 
-          <p className="text-xs text-slate-500">
-            Repository retrieval (RAG) is not available yet; this run is browser-only.
-          </p>
+          <label className="block text-sm">
+            <span className="mb-1 block font-medium">Repository retrieval (RAG)</span>
+            <select
+              value={ragMode}
+              onChange={(e) => setRagMode(e.target.value as typeof ragMode)}
+              className="w-full rounded border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-900"
+            >
+              <option value="none">Off: browser only</option>
+              <option value="hybrid">Hybrid (lexical + vector)</option>
+              <option value="lexical">Lexical only</option>
+              <option value="vector">Vector only</option>
+            </select>
+            <span className="mt-1 block text-xs text-slate-500">
+              Needs a ready repository index for the project. Source can ground hypotheses; only
+              browser observations can prove a reproduction.
+            </span>
+          </label>
 
           {start.isError && <ErrorBlock error={start.error} />}
           <button
@@ -181,7 +196,7 @@ export function NewInvestigationPage() {
           )}
           {settings.data && !settings.data.llm_configured && (
             <p role="alert" className="mt-3 text-xs text-amber-700 dark:text-amber-400">
-              No model provider key is configured; runs will end as blocked.
+              No model provider is configured; runs will end as blocked.
             </p>
           )}
         </div>

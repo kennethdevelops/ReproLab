@@ -1,6 +1,6 @@
 # ADR-0002: Model and embedding providers
 
-- **Status:** Accepted
+- **Status:** Accepted; chat-model provider part superseded by ADR-0004
 - **Date:** 2026-10-28
 
 ## Context

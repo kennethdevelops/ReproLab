@@ -13,6 +13,7 @@ from typing import Any
 from reprolab.agent.investigator import Limits, RunConfig, RunContext, run_investigation_agent
 from reprolab.agent.model_client import ModelClient, ModelUnavailable, build_model_client
 from reprolab.agent.recorder import DbRecorder
+from reprolab.agent.retrieval_tool import DbRetriever
 from reprolab.artifacts.store import ArtifactStore
 from reprolab.browser.policy import OriginPolicy
 from reprolab.browser.session import BrowserSession
@@ -20,6 +21,7 @@ from reprolab.config.settings import Settings, get_settings
 from reprolab.db.enums import FindingVerification, InvestigationStatus
 from reprolab.db.models import Finding, Investigation, Project
 from reprolab.db.session import session_scope
+from reprolab.reports.regression_test import propose_regression_test
 from reprolab.reports.report import build_result
 
 log = logging.getLogger(__name__)
@@ -68,6 +70,11 @@ def execute_investigation(
         viewport = inv.viewport or {"width": 1365, "height": 768}
         origins = allowed_origins(project, settings)
         cancel_requested = inv.cancel_requested
+        is_demo_project = project.mode == "demo"
+        regression_title = f"Regression: {inv.bug_report.splitlines()[0][:150]}"
+        rag = (
+            (inv.rag_mode, inv.snapshot_id) if inv.rag_mode != "none" and inv.snapshot_id else None
+        )
 
     recorder = DbRecorder(investigation_id, store)
     if redelivered:
@@ -88,7 +95,8 @@ def execute_investigation(
         policy = OriginPolicy.from_origins(origins, allow_internal_ips=True)
         browser = BrowserSession(policy, config.base_origin, trace_tmp, viewport)
         with browser:
-            ctx = RunContext(config, model, browser, recorder)
+            retriever = DbRetriever(settings, rag[1], rag[0], investigation_id) if rag else None
+            ctx = RunContext(config, model, browser, recorder, retriever=retriever)
             outcome = run_investigation_agent(ctx)
             recorder.set_status("reporting")
             try:
@@ -96,6 +104,9 @@ def execute_investigation(
             except Exception:  # noqa: BLE001 - a missing final screenshot must not fail the run
                 log.warning("final_screenshot_failed")
             result = build_result(outcome, model.model_id, browser.browser_version, viewport)
+            result["regression_test"] = propose_regression_test(
+                outcome, regression_title, is_demo_project, settings
+            )
         if trace_tmp.exists():
             data = trace_tmp.read_bytes()
             trace_tmp.unlink()
