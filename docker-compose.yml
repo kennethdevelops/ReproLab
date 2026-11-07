@@ -2,7 +2,7 @@
 #
 # Networks:
 #   core    - internal only: database, broker, API and workers.
-#   sandbox - internal only: investigation worker <-> demo targets (and, from M5, the test runner).
+#   sandbox - internal only: investigation worker <-> demo targets and the test runner.
 #   edge    - normal bridge: published ports and outbound calls (model provider, public GitHub).
 # The browser's origin allowlist is enforced in code on every request; see docs/SECURITY.md for the
 # remaining egress gap and the planned proxy for public deployments.
@@ -13,6 +13,7 @@ x-backend-env: &backend-env
     DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-reprolab}:${POSTGRES_PASSWORD:-reprolab}@postgres:5432/${POSTGRES_DB:-reprolab}
     REDIS_URL: redis://redis:6379/0
     ARTIFACTS_DIR: /data/artifacts
+    TEST_RUNNER_URL: http://test-runner:4300
 
 services:
   postgres:
@@ -84,6 +85,9 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
       demo-target: { condition: service_started }
+      test-runner: { condition: service_started }
+    # Lets LLM_BASE_URL=http://host.docker.internal:11434/v1 reach a model server on the host.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     volumes:
       - artifacts:/data/artifacts
     # Chromium sandbox stays on; the Playwright image's seccomp guidance applies (docs/SECURITY.md).
@@ -110,6 +114,20 @@ services:
     depends_on: [demo-target]
     ports: ["4174:4173"]
     networks: [sandbox, edge]
+
+  test-runner:
+    build: { context: ., dockerfile: infra/docker/test-runner.Dockerfile }
+    image: reprolab-test-runner:local
+    environment:
+      BUGGY_URL: http://demo-target:4173
+      FIXED_URL: http://demo-target-fixed:4173
+      DEMO_ADMIN_TOKEN: ${DEMO_ADMIN_TOKEN:?set DEMO_ADMIN_TOKEN in .env}
+    depends_on: [demo-target, demo-target-fixed]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    ipc: private
+    shm_size: 1gb
+    networks: [sandbox]
 
   frontend:
     build:
