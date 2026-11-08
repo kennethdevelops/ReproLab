@@ -1,0 +1,16 @@
+# Keep the build context small and free of host-built artefacts and private data.
+.git
+.env
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/dist
+**/test-results
+test-runner/.work
+data
+backend/data
+benchmarks/ground-truth
+benchmarks/results
