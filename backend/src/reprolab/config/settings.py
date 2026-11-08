@@ -100,6 +100,16 @@ class Settings(BaseSettings):
     test_runner_url: str | None = None
     demo_cases_path: Path = Path("../benchmarks/cases/cases.v1.json")
 
+    @field_validator(
+        "llm_base_url", "llm_api_key", "llm_prices_file", "llm_replay_path", "llm_record_path",
+        "anthropic_api_key", "test_runner_url", "github_token", "demo_admin_token",
+        "embedding_cache_dir", mode="before",
+    )  # fmt: skip
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        # `KEY=` in .env means "not set", not an empty path (".") or an empty secret.
+        return None if isinstance(value, str) and not value.strip() else value
+
     _split = field_validator("cors_allowed_origins", "local_extra_allowed_origins", mode="before")(
         _split_csv
     )

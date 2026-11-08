@@ -196,3 +196,9 @@ def test_prices_file_extends_table(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     prices.write_text(json.dumps({"gpt-y": {"input": 1}}), encoding="utf-8")
     with pytest.raises(ModelUnavailable):
         mc.load_prices_file(prices)
+
+
+def test_blank_env_values_mean_unset() -> None:
+    s = _settings(llm_prices_file="", llm_record_path=" ", llm_api_key="", test_runner_url="")
+    assert s.llm_prices_file is None and s.llm_record_path is None
+    assert s.llm_api_key is None and s.test_runner_url is None
