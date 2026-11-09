@@ -1,4 +1,4 @@
-"""M6 harnesses run end to end. The stub model checks wiring only and is labelled as such."""
+"""Benchmark harnesses run end to end. The stub model checks wiring only and is labelled as such."""
 
 from __future__ import annotations
 

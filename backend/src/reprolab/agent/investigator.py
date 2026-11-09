@@ -1,4 +1,4 @@
-"""Investigation agent: an explicit LangGraph state machine around a bounded tool loop (spec §9).
+"""Investigation agent: an explicit LangGraph state machine around a bounded tool loop.
 
 Graph: model_turn -> execute_tools -> model_turn ... -> finalize. Every limit is checked in code
 before each model call and each browser action; the model is never trusted to stop itself.

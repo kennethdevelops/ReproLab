@@ -1,4 +1,4 @@
-"""Repository retrieval for the agent (M4).
+"""Repository retrieval for the agent.
 
 Retrieved source is untrusted data. Every result is fenced in ``<retrieved_source>`` tags with an
 explicit reminder, and retrieval steps never count as browser evidence: verification only accepts

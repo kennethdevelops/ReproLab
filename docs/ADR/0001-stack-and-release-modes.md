@@ -5,11 +5,11 @@
 
 ## Context
 
-The spec (§4, §5) fixes a default stack and two release modes for the MVP: a local self-hosted tool and a public portfolio demo restricted to an operator-controlled target.
+The original design brief fixed a default stack and two release modes for the MVP: a local self-hosted tool and a public portfolio demo restricted to an operator-controlled target.
 
 ## Decision
 
-Adopt the spec's default stack without substitution:
+Adopt that default stack without substitution:
 
 - React + TypeScript + Vite + Tailwind + TanStack Query for the UI.
 - Python 3.12 + FastAPI + Pydantic v2 + SQLAlchemy 2 + Alembic for the API.

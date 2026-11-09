@@ -1,4 +1,4 @@
-"""Browser navigation policy (spec §12.2). Enforced in code on every request, not in prompts.
+"""Browser navigation policy. Enforced in code on every request, not in prompts.
 
 A request is allowed only when its exact origin (scheme, host, port) is in the investigation's
 allowlist. Independently of the allowlist, cloud metadata and link-local destinations are always

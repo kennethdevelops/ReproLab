@@ -43,8 +43,9 @@ class Settings(BaseSettings):
     )
 
     # anthropic | openai_compatible | replay (stub is test-only)
-    llm_provider: str = "anthropic"
-    llm_model: str = "claude-opus-5-5"
+    # No default model: a fresh checkout is blocked with PROVIDER_NOT_CONFIGURED until one is set.
+    llm_provider: str = "openai_compatible"
+    llm_model: str = ""
     # openai_compatible: base URL of a /v1 chat-completions API (Ollama, LM Studio, OpenAI, ...).
     llm_base_url: str | None = None
     # Generic key for openai_compatible; local servers usually need none.
@@ -124,7 +125,7 @@ class Settings(BaseSettings):
     @property
     def llm_configured(self) -> bool:
         if self.llm_provider == "anthropic":
-            return self.anthropic_api_key is not None
+            return self.anthropic_api_key is not None and bool(self.llm_model)
         if self.llm_provider == "openai_compatible":
             return bool(self.llm_base_url) and bool(self.llm_model)
         if self.llm_provider == "replay":

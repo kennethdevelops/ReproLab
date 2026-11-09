@@ -50,7 +50,7 @@ const PROJECT = {
 const SETTINGS = {
   app_mode: 'local',
   llm_provider: 'anthropic',
-  llm_model: 'claude-opus-5-5',
+  llm_model: 'qwen3:8b',
   llm_configured: false,
   embedding_provider: 'fastembed',
   embedding_model: 'm',

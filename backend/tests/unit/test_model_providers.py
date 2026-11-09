@@ -159,7 +159,24 @@ def test_factory_requires_base_url_and_rejects_unknown() -> None:
         build_model_client(_settings(llm_provider="nope"))
     assert exc.value.code == "PROVIDER_NOT_SUPPORTED"
     assert not _settings(llm_provider="openai_compatible").llm_configured
-    assert _settings(llm_provider="openai_compatible", llm_base_url="http://x/v1").llm_configured
+    assert not _settings(
+        llm_provider="openai_compatible", llm_base_url="http://x/v1"
+    ).llm_configured
+    assert _settings(
+        llm_provider="openai_compatible", llm_base_url="http://x/v1", llm_model="m"
+    ).llm_configured
+
+
+def test_no_default_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("LLM_PROVIDER", "LLM_MODEL", "LLM_BASE_URL", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    s = _settings()
+    assert s.llm_provider == "openai_compatible"
+    assert s.llm_model == ""
+    assert not s.llm_configured
+    with pytest.raises(ModelUnavailable, match="LLM_MODEL"):
+        build_model_client(_settings(llm_provider="anthropic", anthropic_api_key="sk-test"))
+    assert not _settings(llm_provider="anthropic", anthropic_api_key="sk-test").llm_configured
 
 
 def test_record_then_replay(tmp_path: Path) -> None:

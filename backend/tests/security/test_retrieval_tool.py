@@ -1,4 +1,4 @@
-"""Agent retrieval tools (M4): fencing, prompt injection in source, evidence separation, limits.
+"""Agent retrieval tools: fencing, prompt injection in source, evidence separation, limits.
 
 Runs the real agent graph with a scripted model and a fake retriever. No browser action is taken,
 so a placeholder browser is enough.

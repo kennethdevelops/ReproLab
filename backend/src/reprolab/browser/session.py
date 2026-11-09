@@ -1,4 +1,4 @@
-"""Restricted Playwright browser session for one investigation (spec §9.2, §12.2).
+"""Restricted Playwright browser session for one investigation.
 
 The model never touches Playwright directly: it can only invoke the typed actions in
 ``actions.py``. Every network request (navigation, redirect, sub-resource, fetch) passes through a

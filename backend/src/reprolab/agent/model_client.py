@@ -1,4 +1,4 @@
-"""Narrow model interface (spec §4 "LLM implementation rule").
+"""Narrow model interface.
 
 The agent only needs: send system + messages + tools, get back tool calls, text and usage.
 Providers (``LLM_PROVIDER``): ``anthropic`` (official SDK), ``openai_compatible`` (any
@@ -108,6 +108,8 @@ class AnthropicModelClient:
     def __init__(self, settings: Settings) -> None:
         if settings.anthropic_api_key is None:
             raise ModelUnavailable("PROVIDER_NOT_CONFIGURED", "ANTHROPIC_API_KEY is not set.")
+        if not settings.llm_model:
+            raise ModelUnavailable("PROVIDER_NOT_CONFIGURED", "LLM_MODEL is not set.")
         self.model_id = settings.llm_model
         self._effort = settings.llm_effort
         self._max_tokens = settings.llm_max_tokens_per_call

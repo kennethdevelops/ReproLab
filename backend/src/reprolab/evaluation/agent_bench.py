@@ -1,4 +1,4 @@
-"""Agent benchmark (M6): each case x fixture variant x RAG arm x run, with the configured model.
+"""Agent benchmark: each case x fixture variant x RAG arm x run, with the configured model.
 
 The variants are the buggy store (expected ``reproduced``) and the fixed store (expected
 ``not_reproduced``). The arms are ``rag_mode`` values, ``none`` and ``hybrid`` by default. All

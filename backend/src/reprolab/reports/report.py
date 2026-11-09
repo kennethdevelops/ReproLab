@@ -1,4 +1,4 @@
-"""Structured investigation result and Markdown export (spec §3.3, §9.6).
+"""Structured investigation result and Markdown export.
 
 Observed facts, model hypotheses and verification notes are kept in separate sections, and every
 value comes from recorded data; nothing here is generated text.

@@ -153,7 +153,7 @@ def test_start_rejects_policy_overrides(
 def test_d01_regression_test_validated_on_fixtures(
     project_id: uuid.UUID, artifacts: Path, test_runner_url: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """M5 exit gate: the generated test fails on buggy at the assertion and passes on fixed."""
+    """The generated test fails on buggy at the assertion and passes on fixed."""
     monkeypatch.setattr(get_settings(), "test_runner_url", test_runner_url)
     monkeypatch.setattr(
         inv_api, "enqueue_investigation", [_inline(lambda s: StubModelClient(d01_script()))]

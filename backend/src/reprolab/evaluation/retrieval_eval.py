@@ -1,4 +1,4 @@
-"""Retrieval evaluation (M6): lexical vs vector vs hybrid on the demo-store cases.
+"""Retrieval evaluation: lexical vs vector vs hybrid on the demo-store cases.
 
 Each public bug report (``benchmarks/cases``) is used verbatim as the query. Hits are compared with
 the labelled files in ``benchmarks/ground-truth``. Ground truth is read only here, by the

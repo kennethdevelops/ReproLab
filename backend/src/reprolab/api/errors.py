@@ -1,4 +1,4 @@
-"""Consistent error envelope (spec §11.4). Never leaks stack traces or request bodies."""
+"""Consistent error envelope. Never leaks stack traces or request bodies."""
 
 from __future__ import annotations
 

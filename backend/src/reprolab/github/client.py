@@ -1,4 +1,4 @@
-"""Read-only public GitHub source at a pinned commit (spec §8.1-8.2).
+"""Read-only public GitHub source at a pinned commit.
 
 Only ``https://github.com/<owner>/<repo>`` URLs are accepted. The ref is resolved to a full SHA
 through the REST API; the tree is listed once, filtered by ``indexing.paths`` and quotas, and

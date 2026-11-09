@@ -1,104 +1,136 @@
 # ReproLab
 
-AI-assisted web bug investigation. You give ReproLab a bug report and an authorised test target. A tightly constrained Playwright browser agent tries to reproduce the bug. Optionally, it searches the application's repository with hybrid RAG. ReproLab then produces an evidence-backed report and, when the bug is reproduced, a Playwright regression test. For the demo store, that test is checked automatically: it must fail on the buggy build and pass on the fixed one.
+ReproLab takes a bug report for a web app and tries to reproduce it in a real browser. An LLM agent drives Chromium through a small set of tools. It can optionally search the app's source code. The output is a report backed by screenshots, a trace and quoted page text, plus a Playwright regression test when the bug is reproduced.
 
-> **Status: portfolio project, feature-complete for its scope.** Exact verified results, including what is *not* verified yet, are in [`docs/PROGRESS.md`](docs/PROGRESS.md). Evaluation numbers on real models are not published yet.
+The point of the project is the part around the model. Navigation limits, budgets and the decision on whether a bug was reproduced all live in code, and the model cannot override them.
 
-## What it does
+It ships with a small demo storefront that has known defects, a buggy and a fixed build of it, and a benchmark built on top of both.
 
-1. **Investigate.** An agent (LangGraph state machine) drives a real Chromium through a small allowlisted tool set: open a path, click, fill, read text, take screenshots. Navigation is limited to the project's origin. Step, time, token and cost budgets are enforced in code.
-2. **Verify, don't trust.** The model only *proposes* a status. `reproduced` survives only if every quoted piece of evidence appears verbatim in a recorded browser observation made after a page interaction. Otherwise the run becomes `inconclusive`, and the rejected claim is shown.
-3. **Retrieve (optional, `rag_mode`).** `search_code` and `read_source` query an indexed snapshot of the repository: Postgres full-text search plus pgvector, fused with RRF. Retrieved text is fenced as untrusted data. It can ground root-cause hypotheses, but it can never count as reproduction evidence.
-4. **Propose a regression test.** The test is built deterministically from the recorded browser steps plus the model's statement of correct behaviour. The model never writes code. A separate, isolated Node runner accepts only an allowlisted JSON spec and generates the `.spec.ts`. For demo projects, the runner executes the test against the buggy and fixed fixtures. A test is marked `validated` only if it fails on buggy *at an assertion* and passes on fixed. A selector failure counts as `invalid`, not as a detected bug.
-5. **Report.** Markdown/JSON export, screenshots, Playwright trace, a step timeline and live progress over SSE.
+## The problem
 
-## Architecture
+Turning "the coupon disappears when I reload checkout" into a reliable reproduction takes time, and LLM agents asked to do it tend to report success without proof. ReproLab treats every model claim as a proposal:
+
+- A `reproduced` status survives only if each piece of evidence the model quotes appears verbatim in a browser observation recorded *after* a page interaction. Otherwise the run is downgraded to `inconclusive` and the report shows the rejected claim.
+- Source code found through retrieval can support a root-cause hypothesis. It never counts as reproduction evidence.
+- The regression test is assembled from the recorded browser steps. The model contributes only a statement of the expected behaviour, never code. On the demo store the test must fail on the buggy build *at an assertion* and pass on the fixed build before it is marked `validated`.
+
+## How it works
 
 ```
- Browser UI (React)  ──HTTP/SSE──▶  FastAPI  ──Celery/Redis──▶  workers
-                                       │                          │
-                                PostgreSQL + pgvector       ┌─────┴──────────────┐
-                                (runs, steps, evidence,     │ indexing worker    │  snapshot → chunks → fastembed
-                                 chunks, retrieval events)  │ investigation      │  LangGraph agent + Playwright
-                                                            │ worker             │──▶ model provider (BYOM)
-                                                            └─────┬──────────────┘
-                                                  sandbox network │ (internal)
-                                         ┌────────────────────────┼─────────────────────┐
-                                         ▼                        ▼                     ▼
-                                  demo store (buggy)     demo store (fixed)     test runner (Node,
-                                                                                JSON specs only)
+ React UI ──HTTP/SSE──▶ FastAPI ──Celery/Redis──▶ workers
+                           │                        │
+                PostgreSQL + pgvector       ┌───────┴──────────────┐
+                (runs, steps, evidence,     │ indexing worker      │ snapshot → chunks → embeddings
+                 chunks, retrieval log)     │ investigation worker │ LangGraph agent + Playwright ──▶ model provider
+                                            └───────┬──────────────┘
+                                   sandbox network  │ (internal, no outside route)
+                       ┌────────────────────────────┼────────────────────────┐
+                       ▼                            ▼                        ▼
+               demo store (buggy)           demo store (fixed)        test runner (Node,
+                                                                       JSON specs only)
 ```
 
-More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`](docs/SECURITY.md), and the ADRs in [`docs/ADR/`](docs/ADR/).
+1. **Investigate.** A LangGraph state machine alternates model turns and tool calls. Browser tools are typed and allowlisted: open a path, click, fill, read text, screenshot. Every request and redirect is checked against the project's origin. Step, model-call, token, time and cost budgets are checked before each call.
+2. **Retrieve (optional).** With `rag_mode` set, the agent gets `search_code` and `read_source` over an indexed snapshot of the repository: PostgreSQL full-text search and pgvector, fused with reciprocal rank fusion. Retrieved text is fenced as untrusted input.
+3. **Verify.** `agent/verification.py` decides the final status from the recorded steps.
+4. **Generate a test.** A separate Node service accepts only an allowlisted JSON spec, generates the `.spec.ts` deterministically and, for the demo store, runs it against both builds.
+5. **Report.** Live progress over SSE, a step timeline, screenshots, a Playwright trace, Markdown/JSON export.
+
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/SECURITY.md](docs/SECURITY.md). Design decisions are recorded in [docs/ADR/](docs/ADR/).
+
+## Quick start (Docker)
+
+You need Docker with Compose (on Windows, Docker Desktop with WSL2) and a model that supports tool calling. See the next section.
+
+```bash
+cp .env.example .env
+# edit .env: POSTGRES_PASSWORD, DEMO_ADMIN_TOKEN, and one model preset
+docker compose up --build -d
+```
+
+- UI: http://localhost:3000 (API docs at http://localhost:8000/docs)
+- Demo store: buggy build on http://localhost:4173, fixed build on http://localhost:4174
+
+The stack seeds a demo project pointing at the buggy store. Open it in the UI, paste one of the bug reports from `benchmarks/cases/cases.v1.json` and start an investigation.
+
+To let the agent search the demo store's code, export a snapshot and index it from the **RAG Explorer** page:
+
+```bash
+cd backend && uv run python -m reprolab.indexing.local_snapshot export --out ../data/snapshots
+```
+
+Running without Docker is covered in [docs/SETUP.md](docs/SETUP.md). On Windows without `make`, `scripts/rl.ps1 <target>` mirrors the Makefile.
 
 ## Bring your own model
 
-Set `LLM_PROVIDER` in `.env`. `.env.example` has ready presets.
+There is no default model. Until you set one, investigations stop with `PROVIDER_NOT_CONFIGURED`. Pick a preset in `.env`:
 
-| Provider | Use for | Settings |
-|---|---|---|
-| `anthropic` | Claude via the official SDK | `ANTHROPIC_API_KEY`, `LLM_MODEL` |
-| `openai_compatible` | Ollama, LM Studio, vLLM, OpenAI, Gemini, Groq, OpenRouter… | `LLM_BASE_URL`, `LLM_MODEL`, optional `LLM_API_KEY` |
-| `replay` | Re-running a transcript recorded earlier with `LLM_RECORD_PATH` | `LLM_REPLAY_PATH` |
+| Provider | `.env` |
+|---|---|
+| Groq | `LLM_PROVIDER=openai_compatible`<br>`LLM_BASE_URL=https://api.groq.com/openai/v1`<br>`LLM_MODEL=openai/gpt-oss-120b`<br>`LLM_API_KEY=gsk_...` |
+| Gemini | `LLM_PROVIDER=openai_compatible`<br>`LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`<br>`LLM_MODEL=<model>`<br>`LLM_API_KEY=...` |
+| Ollama | `LLM_PROVIDER=openai_compatible`<br>`LLM_BASE_URL=http://localhost:11434/v1` (from Docker: `http://host.docker.internal:11434/v1`)<br>`LLM_MODEL=<model with tool calling>` |
+| Anthropic | `LLM_PROVIDER=anthropic`<br>`LLM_MODEL=<model id>`<br>`ANTHROPIC_API_KEY=...` |
+| OpenAI or any OpenAI-compatible server (LM Studio, vLLM, OpenRouter) | `LLM_PROVIDER=openai_compatible`<br>`LLM_BASE_URL=<server>/v1`<br>`LLM_MODEL=<model>`<br>`LLM_API_KEY=...` (OpenAI: also `LLM_STRICT_TOOLS=true`) |
 
-The model must support tool (function) calling. Check your setup:
+Check that the model answers with a tool call before running anything:
 
 ```bash
 cd backend && uv run python -m reprolab.agent.check_model
 ```
 
-Replay runs are labelled `replay:<model>` everywhere. They exercise the real browser, verification and test validation, but they say nothing about model quality. Models with no entry in the price table (or in `LLM_PRICES_FILE`) run under token, step and time budgets only. Their cost shows as "not estimated".
+Notes:
 
-## Quick start (Docker)
+- The model must support function calling. On an 8 GB GPU, the local models I tried either ran out of memory or answered without calling tools.
+- Gemini models return a `thought_signature` with tool calls. The adapter echoes it back, as Gemini requires.
+- Rate limits from free tiers are reported as `PROVIDER_RATE_LIMITED` and the run ends without a final assessment. Transient errors are retried.
+- Cost is estimated only for models in the price table or in `LLM_PRICES_FILE`. Other models run under token, step and time budgets, and their cost shows as "not estimated".
+- `LLM_RECORD_PATH` records a live run. `LLM_PROVIDER=replay` plays it back through the real browser and verification, labelled `replay:<model>`. A replay says nothing about model quality.
 
-Prerequisites: Docker Desktop (Windows: with WSL2) or Docker Engine + Compose.
+Every variable is listed in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
-```bash
-cp .env.example .env          # set POSTGRES_PASSWORD, DEMO_ADMIN_TOKEN and a model provider
-docker compose up --build -d  # migrations, demo project seed, all services
-```
+## Results
 
-- Web UI: http://localhost:3000. The API docs are at http://localhost:8000/docs.
-- Demo store: buggy at http://localhost:4173, fixed at http://localhost:4174.
-- To use RAG on the demo project, export a snapshot first: `cd backend && uv run python -m reprolab.indexing.local_snapshot export --out ../data/snapshots`. Then click **Index** on the RAG Explorer page.
+**Retrieval** (published): Recall@5 is 0.667 for lexical, 0.722 for vector and 0.778 for hybrid, over the three demo cases. Three queries make this an anecdote, not a statistic. See [docs/EVALUATION.md](docs/EVALUATION.md).
 
-Windows without `make`: `.\scripts\rl.ps1 <target>` mirrors the Makefile targets.
+**Agent benchmark: pending.** It is running on Groq's free tier, which allows 200k tokens per day, so a full pass (3 cases × buggy/fixed × RAG off/on × 2 runs) spans several days. Rows that ended in a rate limit are not results and are not published.
 
-## Development without Docker
+So far one real-model result is verified: `openai/gpt-oss-120b` (via Groq) reproduced D01, the coupon lost on reload, on the buggy store, and the verification code accepted its evidence. One run on one case shows the pipeline works with a real model. It does not measure agent quality.
 
-```bash
-cd backend && uv sync && uv run pytest            # unit + security tests
-cd frontend && npm ci && npm test && npm run dev
-cd demo-target && npm ci && npm run build && npm run verify-oracles -- --runs 2
-cd test-runner && npm ci && npm test              # spec allowlist + real buggy/fixed validation
-```
+How the benchmark is run: [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-Integration and browser tests need a disposable PostgreSQL with pgvector whose database name contains `test`, plus the built demo store:
+## Limits
 
-```bash
-DATABASE_URL=postgresql+psycopg://user@host:5432/reprolab_test uv run pytest -m "integration or browser"
-```
+- Agent quality is not measured yet (see above). The end-to-end tests use a scripted stub model against a real browser. They cover tools, budgets, verification and test validation, not how well a model investigates.
+- The demo store has ten planned defects. Three (D01, D02, D05) have oracles and benchmark cases.
+- Regression tests are executed only against the demo store's two builds. For any other target the generated test is for a person to review and is never run.
+- Origin limits are enforced at the application level, on every browser request. The investigation worker also needs outbound access to the model provider, and a network-level egress proxy is not built. Do not point it at sites you don't control. See [docs/SECURITY.md](docs/SECURITY.md).
+- Screenshots and traces are stored unredacted. The demo store only contains synthetic data.
+- Retrieval uses a regex-based chunker and no ANN index, which is fine for a small repository and not tuned for large ones ([ADR-0003](docs/ADR/0003-chunking-and-vector-index.md)).
+- There is no authentication. It is a local, single-user tool.
 
-## Honest limits
-
-- **Agent quality on real models is not measured yet.** End-to-end tests use a scripted stub model against the real browser. They prove the tools, budgets, verification and test validation, not how well an LLM investigates. The benchmark harness (M6) and published per-model results are the next step.
-- **Three of ten demo defects have oracles** (D01 coupon lost on reload, D02 stale subtotal, D05 filter lost on pagination). The others are out of scope for now.
-- **Regression tests run automatically only against the demo fixtures.** For other targets the test is generated for human review and never executed.
-- **Docker stack not yet verified end to end** on the development machine (no WSL2 there yet). CI has not run because the repository has not been pushed.
-- **Egress:** the browser's origin allowlist is enforced in code on every request. A network-level egress proxy for public deployments is designed but not built (see `docs/SECURITY.md`).
-- Small local models (7-8B) may call tools poorly. Results must always name the model used.
-
-## Repository
+## Repository layout
 
 | Path | Contents |
 |---|---|
-| `backend/` | FastAPI API, Celery workers, agent, retrieval (Python 3.12+, `uv`) |
+| `backend/` | FastAPI API, Celery workers, agent, browser tools, indexing and retrieval (Python 3.12, `uv`) |
 | `frontend/` | React + Vite + Tailwind UI |
-| `demo-target/` | Synthetic storefront with injected defects, fixed variants and oracle tests |
-| `test-runner/` | Isolated Node Playwright Test validator for restricted JSON test specs |
-| `benchmarks/` | Public cases, private ground truth, runners, measured results |
-| `docs/` | Plan, progress, architecture, security, ADRs |
+| `demo-target/` | Demo storefront: buggy source, fixed overlays, oracle tests |
+| `test-runner/` | Isolated Node service that validates JSON test specs and runs them with Playwright Test |
+| `benchmarks/` | Cases, ground truth (evaluation only), published results |
+| `docs/` | Setup, configuration, architecture, security, evaluation, ADRs |
+
+## Development
+
+```bash
+cd backend && uv sync && uv run pytest && uv run ruff check . && uv run mypy
+cd frontend && npm ci && npm run lint && npm run typecheck && npm test
+cd demo-target && npm ci && npm run build && npm test && npm run verify-oracles -- --runs 2
+cd test-runner && npm ci && npm test
+```
+
+Integration and browser tests need PostgreSQL with pgvector. See [docs/SETUP.md](docs/SETUP.md#tests).
 
 ## Licence
 
-MIT (pending owner confirmation). See [`LICENSE`](LICENSE).
+MIT. See [LICENSE](LICENSE).

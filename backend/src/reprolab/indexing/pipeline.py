@@ -1,4 +1,4 @@
-"""Indexing job: snapshot source -> documents -> chunks -> embeddings -> ready (spec §8.2, §7.2).
+"""Indexing job: snapshot source -> documents -> chunks -> embeddings -> ready.
 
 Documents and chunks are written in a single transaction together with the ``ready`` status, so
 a half-indexed snapshot is never visible. Progress is reported in separate short transactions.
@@ -89,7 +89,7 @@ def prepare_documents(
 
 
 def verify_citations(docs: list[PreparedDocument]) -> None:
-    """Every chunk must be exactly its cited lines of the stored document (spec §8.2 step 11)."""
+    """Every chunk must be exactly its cited lines of the stored document."""
     for doc in docs:
         lines = doc.content.splitlines()
         for c in doc.chunks:

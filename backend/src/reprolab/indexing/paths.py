@@ -1,4 +1,4 @@
-"""Path, type and size rules for what may be indexed (spec §8.1).
+"""Path, type and size rules for what may be indexed.
 
 These checks run in the exporter, the GitHub adapter and again in the indexing pipeline, so a
 snapshot directory that somehow contains a forbidden file still never reaches the index.
@@ -21,7 +21,7 @@ FORBIDDEN_SEGMENTS = frozenset(
         "__pycache__",
         ".venv",
         "venv",
-        # Benchmark answer keys and fixture variants (spec §12: never visible to the agent).
+        # Benchmark answer keys and fixture variants (never visible to the agent).
         "ground-truth",
         "fixtures",
         "oracles",

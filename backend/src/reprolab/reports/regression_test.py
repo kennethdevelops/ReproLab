@@ -1,4 +1,4 @@
-"""Proposed Playwright regression test (spec §10, M5).
+"""Proposed Playwright regression test.
 
 The spec is built deterministically from recorded, successful browser steps plus the model's
 ``regression_check`` (the text that should be visible once the bug is fixed). It is never

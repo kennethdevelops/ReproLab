@@ -1,4 +1,4 @@
-"""SQLAlchemy models (spec §7). Schema changes go through Alembic migrations only."""
+"""SQLAlchemy models. Schema changes go through Alembic migrations only."""
 
 from __future__ import annotations
 

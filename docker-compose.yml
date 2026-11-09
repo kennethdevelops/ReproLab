@@ -72,7 +72,7 @@ services:
       redis: { condition: service_healthy }
     volumes:
       - models:/home/reprolab/.cache
-      # Operator-exported snapshots (M3: `git archive` of the indexable paths only). Read-only;
+      # Operator-exported snapshots (`git archive` of the indexable paths only). Read-only;
       # neither .git nor benchmarks/ground-truth is ever mounted here.
       - ./data/snapshots:/snapshots:ro
     networks: [core, edge]

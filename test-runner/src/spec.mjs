@@ -1,4 +1,4 @@
-// Restricted regression-test specification (spec §10.1). Anything outside this allowlist is
+// Restricted regression-test specification. Anything outside this allowlist is
 // rejected before code generation. The spec is data: no field is ever evaluated as code.
 
 // wait_for_text is a setup checkpoint: it waits for state the app must reach before continuing.

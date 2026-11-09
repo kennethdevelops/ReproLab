@@ -1,4 +1,4 @@
-"""Scoped repository retrieval (spec §8.3-8.4).
+"""Scoped repository retrieval.
 
 Every function takes one snapshot and filters by it; callers resolve the snapshot from the
 project, so no query can mix projects or snapshots.

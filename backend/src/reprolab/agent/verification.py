@@ -1,4 +1,4 @@
-"""Code-level checks on the model's final assessment (spec §2.5, §9.4).
+"""Code-level checks on the model's final assessment.
 
 The model proposes a status; this module decides whether recorded evidence supports it.
 A ``reproduced`` claim survives only if every cited quote appears verbatim in the output of a

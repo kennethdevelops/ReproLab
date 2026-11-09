@@ -1,4 +1,4 @@
-"""Redaction of secrets and personal data before anything is persisted or shown (spec §12.4)."""
+"""Redaction of secrets and personal data before anything is persisted or shown."""
 
 from __future__ import annotations
 

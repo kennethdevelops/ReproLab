@@ -1,4 +1,4 @@
-"""Status enums shared by the DB layer, API and workers (spec §7.1, §2.5)."""
+"""Status enums shared by the DB layer, API and workers."""
 
 from __future__ import annotations
 

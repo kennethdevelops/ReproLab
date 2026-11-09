@@ -40,3 +40,12 @@ benchmarks/results/tmp/
 !.vscode/extensions.json
 .DS_Store
 Thumbs.db
+
+# Interrupted benchmark passes (may contain rate-limited rows; never published)
+benchmarks/results/**/*.partial.jsonl
+
+# Local working notes, not part of the public repository
+AGENTS.md
+REPROLAB_PROJECT_SPEC.md
+docs/PROGRESS.md
+docs/IMPLEMENTATION_PLAN.md
