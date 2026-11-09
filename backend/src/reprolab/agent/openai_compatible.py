@@ -198,7 +198,8 @@ class OpenAICompatibleModelClient:
             raise ModelUnavailable("PROVIDER_PERMISSION_DENIED", "Provider denied access.")
         if status == 404:
             raise ModelUnavailable(
-                "PROVIDER_MODEL_NOT_FOUND", f"Model {self.model_id!r} or endpoint not found."
+                "PROVIDER_MODEL_NOT_FOUND",
+                f"Model {self.model_id!r} or endpoint not found: {response.text[:300]}",
             )
         if status == 429:
             raise ModelUnavailable("PROVIDER_RATE_LIMITED", "Provider rate limit reached.")

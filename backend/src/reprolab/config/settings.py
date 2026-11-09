@@ -26,7 +26,10 @@ def _split_csv(value: object) -> object:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # The documented .env lives at the repo root, but commands run from backend/.
+    # Later files win, so a backend/.env (if any) overrides the root one.
+    # Real environment variables (Docker, CI) override both.
+    model_config = SettingsConfigDict(env_file=("../.env", ".env"), extra="ignore")
 
     app_env: str = "local"
     app_mode: AppMode = AppMode.LOCAL
