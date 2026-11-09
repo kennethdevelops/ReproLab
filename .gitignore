@@ -28,7 +28,8 @@ blob-report/
 
 # Runtime data
 data/
-artifacts/
+/artifacts/
+backend/artifacts/
 *.log
 
 # Benchmark raw output is committed deliberately only under benchmarks/results/<run-id>/
