@@ -11,6 +11,7 @@ Uses ``httpx`` directly: no extra SDK dependency, and the request body stays vis
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from collections.abc import Sequence
 from typing import Any
@@ -19,6 +20,23 @@ import httpx
 
 from reprolab.agent.model_client import ModelTurn, ModelUnavailable, ToolCall, Usage
 from reprolab.config.settings import Settings
+
+# Transient provider failures (rate limit, overload) are retried with backoff. Free tiers such as
+# Gemini's return 503 "high demand" often enough to end runs otherwise. Failed attempts use no
+# tokens; the run's wall-clock budget is still checked before every model call.
+_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+_RETRY_DELAYS = (5.0, 15.0, 45.0)
+_MAX_RETRY_AFTER = 60.0
+_sleep = time.sleep
+
+
+def _retry_delay(response: httpx.Response, default: float) -> float:
+    try:
+        value = float(response.headers.get("retry-after", ""))
+    except ValueError:
+        return default
+    return min(max(value, 0.0), _MAX_RETRY_AFTER)
+
 
 _PROBE_TOOL = {
     "name": "report_ready",
@@ -63,15 +81,18 @@ def to_openai_messages(system: str, messages: Sequence[dict[str, Any]]) -> list[
         content = msg["content"]
         if msg["role"] == "assistant":
             blocks = content if isinstance(content, list) else [{"type": "text", "text": content}]
-            calls = [
-                {
+            calls = []
+            for b in blocks:
+                if b.get("type") != "tool_use":
+                    continue
+                call: dict[str, Any] = {
                     "id": b["id"],
                     "type": "function",
                     "function": {"name": b["name"], "arguments": json.dumps(b.get("input", {}))},
                 }
-                for b in blocks
-                if b.get("type") == "tool_use"
-            ]
+                if b.get("provider_extra"):
+                    call["extra_content"] = b["provider_extra"]
+                calls.append(call)
             entry: dict[str, Any] = {"role": "assistant", "content": _text_of(blocks) or None}
             if calls:
                 entry["tool_calls"] = calls
@@ -126,9 +147,14 @@ def parse_response(body: dict[str, Any], fallback_model: str) -> ModelTurn:
         call_id = raw.get("id") or f"call_{uuid.uuid4().hex[:12]}"
         args = _parse_arguments(fn.get("arguments"))
         calls.append(ToolCall(call_id, str(fn.get("name", "")), args))
-        content.append(
-            {"type": "tool_use", "id": call_id, "name": fn.get("name", ""), "input": args}
-        )
+        block: dict[str, Any] = {
+            "type": "tool_use", "id": call_id, "name": fn.get("name", ""), "input": args,
+        }  # fmt: skip
+        # Gemini attaches a thought_signature under extra_content and rejects the next request
+        # with HTTP 400 unless it is sent back unchanged on the same tool call.
+        if isinstance(raw.get("extra_content"), dict):
+            block["provider_extra"] = raw["extra_content"]
+        content.append(block)
     if message.get("refusal"):
         content.append({"type": "text", "text": str(message["refusal"])})
         stop = "refusal"
@@ -185,12 +211,20 @@ class OpenAICompatibleModelClient:
         if tools:
             payload["tools"] = to_openai_tools(tools, self._strict)
             payload["tool_choice"] = "auto"
-        try:
-            response = self._http.post("/chat/completions", json=payload)
-        except httpx.TimeoutException as exc:
-            raise ModelUnavailable("PROVIDER_TIMEOUT", "Provider did not answer in time.") from exc
-        except httpx.HTTPError as exc:
-            raise ModelUnavailable("PROVIDER_UNREACHABLE", "Could not reach the provider.") from exc
+        for attempt in range(len(_RETRY_DELAYS) + 1):
+            try:
+                response = self._http.post("/chat/completions", json=payload)
+            except httpx.TimeoutException as exc:
+                raise ModelUnavailable(
+                    "PROVIDER_TIMEOUT", "Provider did not answer in time."
+                ) from exc
+            except httpx.HTTPError as exc:
+                raise ModelUnavailable(
+                    "PROVIDER_UNREACHABLE", "Could not reach the provider."
+                ) from exc
+            if response.status_code not in _RETRY_STATUSES or attempt == len(_RETRY_DELAYS):
+                break
+            _sleep(_retry_delay(response, _RETRY_DELAYS[attempt]))
         status = response.status_code
         if status == 401:
             raise ModelUnavailable("PROVIDER_AUTH_FAILED", "Provider rejected the API key.")

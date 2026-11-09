@@ -10,10 +10,12 @@ import httpx
 import pytest
 
 from reprolab.agent import model_client as mc
+from reprolab.agent import openai_compatible as oc
 from reprolab.agent.model_client import ModelUnavailable, StubModelClient, Usage, build_model_client
 from reprolab.agent.openai_compatible import (
     OpenAICompatibleModelClient,
     check_tool_support,
+    parse_response,
     to_openai_messages,
     to_openai_tools,
 )
@@ -202,3 +204,52 @@ def test_blank_env_values_mean_unset() -> None:
     s = _settings(llm_prices_file="", llm_record_path=" ", llm_api_key="", test_runner_url="")
     assert s.llm_prices_file is None and s.llm_record_path is None
     assert s.llm_api_key is None and s.test_runner_url is None
+
+
+def test_gemini_thought_signature_round_trips() -> None:
+    extra = {"google": {"thought_signature": "sig-abc"}}
+    body = {"choices": [{"finish_reason": "tool_calls", "message": {"content": None, "tool_calls": [
+        {"id": "c9", "type": "function", "extra_content": extra,
+         "function": {"name": "open_page", "arguments": '{"path": "/"}'}},
+    ]}}]}  # fmt: skip
+    turn = parse_response(body, "gemini")
+    history = [{"role": "user", "content": "Go."},
+               {"role": "assistant", "content": turn.assistant_content}]  # fmt: skip
+    sent = to_openai_messages("SYS", history)[2]["tool_calls"][0]
+    assert sent["extra_content"] == extra
+    plain = to_openai_messages("SYS", HISTORY)[2]["tool_calls"][0]
+    assert "extra_content" not in plain
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    slept: list[float] = []
+    monkeypatch.setattr(oc, "_sleep", slept.append)
+    return slept
+
+
+def test_transient_errors_are_retried_then_succeed(_no_retry_sleep: list[float]) -> None:
+    answers = [httpx.Response(503, text="busy"), httpx.Response(429, headers={"retry-after": "2"}),
+               httpx.Response(200, json={"choices": [{"message": {"content": "hi"},
+                                                      "finish_reason": "stop"}]})]  # fmt: skip
+    client = _client(lambda r: answers.pop(0))
+    turn = client.complete("S", [{"role": "user", "content": "x"}], [])
+    assert turn.text == "hi"
+    assert _no_retry_sleep == [5.0, 2.0]
+
+
+def test_retries_are_bounded(_no_retry_sleep: list[float]) -> None:
+    calls = []
+    client = _client(lambda r: calls.append(1) or httpx.Response(503, text="busy"))
+    with pytest.raises(ModelUnavailable) as exc:
+        client.complete("S", [{"role": "user", "content": "x"}], [])
+    assert exc.value.code == "PROVIDER_ERROR"
+    assert len(calls) == 4
+
+
+def test_client_errors_are_not_retried() -> None:
+    calls = []
+    client = _client(lambda r: calls.append(1) or httpx.Response(400, text="bad"))
+    with pytest.raises(ModelUnavailable):
+        client.complete("S", [{"role": "user", "content": "x"}], [])
+    assert len(calls) == 1
