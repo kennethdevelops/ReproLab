@@ -102,6 +102,12 @@ def run_bench(
                     raise SystemExit(f"indexing failed: {r.text}")
             projects[variant] = pid
 
+    out_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in model_id)
+    # Each row is appended as soon as its run ends, so a killed bench keeps finished runs.
+    # The file is removed once the full report is written.
+    partial_path = out_dir / f"agent-{stamp}-{safe}.partial.jsonl"
     rows: list[dict[str, Any]] = []
     for case_id in case_ids:
         case = cases[case_id]
@@ -138,6 +144,8 @@ def run_bench(
                             "seconds": round(time.monotonic() - started, 1),
                             "status_reason": (inv.status_reason or "")[:300],
                         })  # fmt: skip
+                    with partial_path.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(rows[-1]) + "\n")
 
     summary: dict[str, Any] = {}
     for arm in arms:
@@ -171,9 +179,6 @@ def run_bench(
         "summary": summary,
         "rows": rows,
     }
-    out_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in model_id)
     json_path, csv_path = (
         out_dir / f"agent-{stamp}-{safe}.json",
         out_dir / f"agent-{stamp}-{safe}.csv",
@@ -183,6 +188,7 @@ def run_bench(
         w = csv.DictWriter(fh, list(rows[0]) if rows else ["case_id"])
         w.writeheader()
         w.writerows(rows)
+    partial_path.unlink(missing_ok=True)
     report["written"] = str(json_path)
     return report
 
