@@ -30,6 +30,19 @@ _MAX_RETRY_AFTER = 60.0
 _sleep = time.sleep
 
 
+_MAX_TOOL_CALL_FIXES = 2
+
+
+def _is_invalid_tool_call(response: httpx.Response) -> bool:
+    if response.status_code != 400:
+        return False
+    try:
+        error = response.json().get("error") or {}
+    except (ValueError, AttributeError):
+        return False
+    return isinstance(error, dict) and error.get("code") == "tool_use_failed"
+
+
 def _retry_delay(response: httpx.Response, default: float) -> float:
     try:
         value = float(response.headers.get("retry-after", ""))
@@ -211,6 +224,21 @@ class OpenAICompatibleModelClient:
         if tools:
             payload["tools"] = to_openai_tools(tools, self._strict)
             payload["tool_choice"] = "auto"
+        response = self._post(payload)
+        for _ in range(_MAX_TOOL_CALL_FIXES):
+            if not _is_invalid_tool_call(response):
+                break
+            # Some models (gpt-oss via Groq) occasionally emit a call to a tool that does not
+            # exist, such as their internal "commentary" channel, and the server rejects the
+            # whole request. Ask once more with a correction instead of ending the run.
+            payload["messages"] = [*payload["messages"], {"role": "user", "content": (
+                "Your last reply called a tool that does not exist. "
+                "Call only the tools provided, or answer in plain text."
+            )}]  # fmt: skip
+            response = self._post(payload)
+        return self._handle(response)
+
+    def _post(self, payload: dict[str, Any]) -> httpx.Response:
         for attempt in range(len(_RETRY_DELAYS) + 1):
             try:
                 response = self._http.post("/chat/completions", json=payload)
@@ -225,6 +253,9 @@ class OpenAICompatibleModelClient:
             if response.status_code not in _RETRY_STATUSES or attempt == len(_RETRY_DELAYS):
                 break
             _sleep(_retry_delay(response, _RETRY_DELAYS[attempt]))
+        return response
+
+    def _handle(self, response: httpx.Response) -> ModelTurn:
         status = response.status_code
         if status == 401:
             raise ModelUnavailable("PROVIDER_AUTH_FAILED", "Provider rejected the API key.")

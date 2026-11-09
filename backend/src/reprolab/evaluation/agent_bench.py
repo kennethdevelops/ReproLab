@@ -128,6 +128,7 @@ def run_bench(
                             "expected": EXPECTED[variant], "correct": inv.status == EXPECTED[variant],
                             "claimed_status": result.get("claimed_status"),
                             "regression_test": rt.get("status"),
+                            "regression_test_reason": rt.get("reason"),
                             "model_id": run.get("model_id", model_id),
                             "model_calls": run.get("model_calls"),
                             "browser_steps": run.get("browser_steps"),

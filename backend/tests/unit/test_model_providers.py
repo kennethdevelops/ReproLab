@@ -253,3 +253,31 @@ def test_client_errors_are_not_retried() -> None:
     with pytest.raises(ModelUnavailable):
         client.complete("S", [{"role": "user", "content": "x"}], [])
     assert len(calls) == 1
+
+
+def _tool_use_failed() -> httpx.Response:
+    return httpx.Response(400, json={"error": {"code": "tool_use_failed", "message": "bad tool"}})
+
+
+def test_invalid_tool_call_is_corrected_and_retried() -> None:
+    seen: list[dict[str, Any]] = []
+    answers = [_tool_use_failed(), httpx.Response(200, json={
+        "choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}]})]  # fmt: skip
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.content))
+        return answers.pop(0)
+
+    turn = _client(handler).complete("S", [{"role": "user", "content": "x"}], [])
+    assert turn.text == "ok"
+    assert len(seen) == 2
+    assert "does not exist" in seen[1]["messages"][-1]["content"]
+
+
+def test_invalid_tool_call_fixes_are_bounded() -> None:
+    calls = []
+    client = _client(lambda r: calls.append(1) or _tool_use_failed())
+    with pytest.raises(ModelUnavailable) as exc:
+        client.complete("S", [{"role": "user", "content": "x"}], [])
+    assert exc.value.code == "PROVIDER_BAD_REQUEST"
+    assert len(calls) == 3
